@@ -8,9 +8,15 @@ const app = express();
 
 const authRoutes = require("./routes/authRoutes");
 
+const roleTestRoutes = require("./routes/roleTestRoutes");
+
+const jobRoutes = require("./routes/jobRoutes");
+
 app.use(cors());
 app.use(express.json());
 app.use("/api/auth", authRoutes);
+app.use("/api/test", roleTestRoutes);
+app.use("/api/jobs", jobRoutes);
 
 app.get("/", (req, res) => {
     res.json({
