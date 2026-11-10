@@ -38,6 +38,7 @@ const getAllJobs = async () => {
         `SELECT j.*, ep.company_name
          FROM jobs j
          LEFT JOIN employer_profiles ep ON j.employer_id = ep.id
+         WHERE j.moderation_status = 'APPROVED'
          ORDER BY j.created_at DESC`
     );
 

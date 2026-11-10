@@ -1,5 +1,7 @@
 
 const jobModel = require("../models/jobModel");
+const { getAdminEmails } = require("../models/userModel");
+const { sendEmail } = require("../services/emailService");
 
 const validJobTypes = ["PART_TIME", "FULL_TIME", "FREELANCE"];
 const validStatuses = ["OPEN", "CLOSED"];
@@ -87,9 +89,26 @@ const createJob = async (req, res) => {
             employer_id: employerProfileId
         });
 
+        // Email admin la tac vu phu; khong rollback tin neu SMTP tam loi.
+        try {
+            const adminEmails = await getAdminEmails();
+            if (adminEmails.length) {
+                await sendEmail({
+                    to: adminEmails.join(","),
+                    subject: "Tin tuyển dụng mới cần kiểm duyệt",
+                    text: `Tin "${req.body.title}" (ID ${jobId}) vừa được tạo và đang chờ admin kiểm duyệt.`
+                });
+            } else {
+                console.warn("Không có tài khoản ADMIN để nhận email thông báo tin mới.");
+            }
+        } catch (mailError) {
+            console.error("Admin job notification email error:", mailError.message);
+        }
+
         return res.status(201).json({
-            message: "Đăng tin tuyển dụng thành công",
-            jobId
+            message: "Đăng tin thành công. Tin đang chờ admin kiểm duyệt.",
+            jobId,
+            moderation_status: "PENDING"
         });
     } catch (error) {
         console.error("Create job error:", error);

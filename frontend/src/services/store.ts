@@ -1,16 +1,77 @@
-import { seedApplications, seedJobs, seedReviews, seedUsers } from '../data/seed';
-import type { Application, Job, Review, User } from '../types';
-const keys={users:'sj_users',jobs:'sj_jobs',applications:'sj_applications',reviews:'sj_reviews',session:'sj_session'};
-function read<T>(key:string,seed:T):T { try { const v=localStorage.getItem(key); return v?JSON.parse(v) as T:seed; } catch { return seed; } }
-function write<T>(key:string,value:T){localStorage.setItem(key,JSON.stringify(value));}
-export const store={
- users:()=>read<User[]>(keys.users,seedUsers), jobs:()=>read<Job[]>(keys.jobs,seedJobs), applications:()=>read<Application[]>(keys.applications,seedApplications), reviews:()=>read<Review[]>(keys.reviews,seedReviews),
- saveUsers:(v:User[])=>write(keys.users,v),saveJobs:(v:Job[])=>write(keys.jobs,v),saveApplications:(v:Application[])=>write(keys.applications,v),saveReviews:(v:Review[])=>write(keys.reviews,v),
- session:()=>read<User|null>(keys.session,null),setSession:(u:User|null)=>u?write(keys.session,u):localStorage.removeItem(keys.session),
- reset:()=>{Object.values(keys).forEach(k=>localStorage.removeItem(k));}
+import type { User, Role, Job, Application, Review } from '../types';
+import { api, tokenStore } from './api';
+let jobCache: Job[] = [];
+let applicationCache: Application[] = [];
+const notifyData = () => window.dispatchEvent(new Event('sj:data-updated'));
+const mapJob = (row:any): Job => ({ id:String(row.id), title:row.title, company:row.company_name || 'Employer', employerId:String(row.employer_id), category:'Other', type:row.job_type, salaryMin:Number(row.salary_min || 0), salaryMax:Number(row.salary_max || 0), location:row.location || 'Not specified', arrangement:'On-site', description:row.description || '', responsibilities:[], requirements:[], skills:[], deadline:row.deadline ? String(row.deadline).slice(0,10) : '', postedAt:row.created_at ? String(row.created_at).slice(0,10) : new Date().toISOString().slice(0,10), status:row.status, moderation:row.moderation_status || 'APPROVED', applicants:0 });
+
+const SESSION_KEY = 'sj_session';
+function readSession(): User | null {
+  try { const raw = localStorage.getItem(SESSION_KEY); return raw ? JSON.parse(raw) as User : null; }
+  catch { return null; }
+}
+function saveSession(user: User | null) {
+  if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  else localStorage.removeItem(SESSION_KEY);
+}
+function toUser(data: {id:number;email:string;role:Role}): User {
+  return { id: String(data.id), name: data.email.split('@')[0], email: data.email, role: data.role,
+    status: 'ACTIVE', joinedAt: new Date().toISOString().slice(0,10) };
+}
+export const store = {
+  session: readSession,
+  setSession: saveSession,
+  reset: () => { saveSession(null); tokenStore.clear(); },
+  // Local demo collections are intentionally empty; live domain data is loaded from API services.
+  users: () => [] as User[],
+  jobs: () => jobCache,
+  applications: () => applicationCache,
+  reviews: () => [] as Review[],
+  saveUsers: (_: User[]) => undefined,
+  saveJobs: (_: any[]) => undefined,
+  saveApplications: (_: any[]) => undefined,
+  saveReviews: (_: any[]) => undefined,
 };
-export const authService={login(email:string,password:string):User { if(!password.trim())throw new Error('Enter your password.'); const user=store.users().find(u=>u.email.toLowerCase()===email.toLowerCase()&&u.status==='ACTIVE'); if(!user)throw new Error('No active demo account found for that email. Try one of the demo accounts below.');store.setSession(user);return user;},register(input:{name:string;email:string;password:string;role:'STUDENT'|'EMPLOYER';company?:string}):User {if(input.password.length<6)throw new Error('Password must be at least 6 characters.');const users=store.users();if(users.some(u=>u.email.toLowerCase()===input.email.toLowerCase()))throw new Error('An account with this email already exists.');const u:User={id:`u-${Date.now()}`,name:input.name,email:input.email,role:input.role,status:'ACTIVE',company:input.company,joinedAt:new Date().toISOString().slice(0,10)};store.saveUsers([...users,u]);store.setSession(u);return u;},logout(){store.setSession(null);}};
-export const jobService={all:()=>store.jobs(),byId:(id:string)=>store.jobs().find(j=>j.id===id),save:(job:Job)=>{const jobs=store.jobs();const i=jobs.findIndex(j=>j.id===job.id);store.saveJobs(i<0?[job,...jobs]:jobs.map(j=>j.id===job.id?job:j));},remove:(id:string)=>store.saveJobs(store.jobs().filter(j=>j.id!==id))};
-export const applicationService={all:()=>store.applications(),apply(jobId:string,user:User,message:string){const jobs=store.jobs();const job=jobs.find(j=>j.id===jobId);if(!job)throw new Error('This job could not be found.');if(job.status!=='OPEN'||job.moderation!=='APPROVED')throw new Error('This job is not accepting applications.');const apps=store.applications();if(apps.some(a=>a.jobId===jobId&&a.studentId===user.id))throw new Error('You have already applied for this job.');const a:Application={id:`a-${Date.now()}`,jobId,studentId:user.id,appliedAt:new Date().toISOString().slice(0,10),status:'PENDING',message,cvUrl:user.cvUrl||''};store.saveApplications([a,...apps]);store.saveJobs(jobs.map(j=>j.id===jobId?{...j,applicants:j.applicants+1}:j));return a;},updateStatus(id:string,status:Application['status']){store.saveApplications(store.applications().map(a=>a.id===id?{...a,status}:a));}};
-export const userService={save:(user:User)=>{store.saveUsers(store.users().map(u=>u.id===user.id?user:u));if(store.session()?.id===user.id)store.setSession(user);},toggleStatus:(id:string)=>store.saveUsers(store.users().map(u=>u.id===id?{...u,status:u.status==='ACTIVE'?'INACTIVE':'ACTIVE'}:u))};
-export const reviewService={create(jobId:string,user:User,rating:number,comment:string){const reviews=store.reviews();if(reviews.some(r=>r.jobId===jobId&&r.studentId===user.id))throw new Error('You have already reviewed this job.');if(!store.applications().some(a=>a.jobId===jobId&&a.studentId===user.id&&a.status==='ACCEPTED'))throw new Error('Only accepted applications are eligible in this demo.');const r:Review={id:`r-${Date.now()}`,jobId,studentId:user.id,rating,comment,createdAt:new Date().toISOString().slice(0,10)};store.saveReviews([r,...reviews]);return r;}};
+export const authService = {
+  async login(email: string, password: string): Promise<User> {
+    const result = await api.auth.login(email.trim().toLowerCase(), password);
+    tokenStore.set(result.token);
+    const user = toUser(result.user);
+    saveSession(user);
+    return user;
+  },
+  async requestRegistrationOtp(input: {name:string;email:string;password:string;role:'STUDENT'|'EMPLOYER';company?:string}) {
+    const profile = input.role === 'STUDENT'
+      ? { full_name: input.name.trim() }
+      : { company_name: (input.company || '').trim() };
+    return api.auth.requestOtp({ email: input.email.trim().toLowerCase(), password: input.password, role: input.role, ...profile });
+  },
+  async verifyRegistrationOtp(email:string,otp:string) {
+    const result = await api.auth.verifyOtp(email.trim().toLowerCase(),otp.trim());
+    return toUser(result.user);
+  },
+  logout() { tokenStore.clear(); saveSession(null); },
+};
+export const jobService = {
+  all: () => jobCache,
+  byId: (id:string): Job | undefined => jobCache.find(j=>j.id===id),
+  async load() { const result=await api.jobs.all(); let rows=result.data; if(readSession()?.role==='ADMIN'){try{const pending=await api.admin.pendingJobs();rows=[...rows,...pending.data]}catch{}} jobCache=rows.map(mapJob); notifyData(); return jobCache; },
+  async save(job:Job) { const payload={title:job.title,description:job.description,location:job.location,salary_min:job.salaryMin,salary_max:job.salaryMax,job_type:job.type,deadline:job.deadline || null,status:job.status}; if(/^\\d+$/.test(job.id)) await api.jobs.update(job.id,payload); else await api.jobs.create(payload); await this.load(); },
+  remove: (_id:string) => { throw new Error('The backend does not expose a job deletion endpoint.'); },
+};
+export const applicationService = {
+  all: () => applicationCache,
+  async loadMine() {
+    const result=await api.applications.mine();
+    const current=readSession();
+    applicationCache=result.data.map((row:any)=>({id:String(row.id),jobId:String(row.job_id),studentId:current?.id || String(row.student_id),appliedAt:row.applied_at?String(row.applied_at).slice(0,10):'',status:row.status,message:row.cover_letter || '',cvUrl:row.cv_url || ''}));
+    notifyData();
+    return applicationCache;
+  },
+  async apply(jobId:string,user:User,message:string) {
+    return api.applications.create({job_id:Number(jobId),cv_url:user.cvUrl || null,cover_letter:message || null});
+  },
+  async updateStatus(id:string,status:'ACCEPTED'|'REJECTED') { return api.applications.updateStatus(id,status); },
+};
+export const userService = { save: (_user:User) => { throw new Error('The backend does not expose a profile update endpoint.'); }, toggleStatus: (_id:string) => { throw new Error('The backend does not expose user activation management.'); } };
+export const reviewService = { create: (_jobId:string,_user:User,_rating:number,_comment:string) => { throw new Error('Review API is not available in the backend.'); } };

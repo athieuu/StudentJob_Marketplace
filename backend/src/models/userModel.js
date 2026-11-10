@@ -75,7 +75,13 @@ const createUser = async ({
     }
 };
 
+const getAdminEmails = async () => {
+    const [rows] = await pool.query("SELECT email FROM users WHERE role = 'ADMIN'");
+    return rows.map(row => row.email);
+};
+
 module.exports = {
     findUserByEmail,
-    createUser
+    createUser,
+    getAdminEmails
 };

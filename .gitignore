@@ -13,3 +13,6 @@ frontend/node_modules/
 
 # Database dump with real data
 database/studentjob_marketplace.sql
+
+# Frontend production build
+frontend/dist/

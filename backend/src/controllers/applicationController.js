@@ -1,6 +1,8 @@
 
 const applicationModel = require("../models/applicationModel");
 const jobModel = require("../models/jobModel");
+const { sendEmail } = require("../services/emailService");
+const db = require("../config/db");
 
 const validStatuses = ["ACCEPTED", "REJECTED"];
 
@@ -77,6 +79,24 @@ const createApplication = async (req, res) => {
                 cv_url: cv_url || null,
                 cover_letter: cover_letter || null
             });
+
+        try {
+            const [employerRows] = await db.execute(
+                `SELECT u.email, ep.company_name
+                 FROM jobs j JOIN employer_profiles ep ON j.employer_id = ep.id
+                 JOIN users u ON ep.user_id = u.id WHERE j.id = ?`,
+                [jobId]
+            );
+            if (employerRows[0]?.email) {
+                await sendEmail({
+                    to: employerRows[0].email,
+                    subject: "Bạn có hồ sơ ứng tuyển mới",
+                    text: `Có sinh viên vừa ứng tuyển tin "${job.title}" (ID ${jobId}). Vui lòng đăng nhập StudentJob Marketplace để xem hồ sơ.`
+                });
+            }
+        } catch (mailError) {
+            console.error("Employer application notification email error:", mailError.message);
+        }
 
         return res.status(201).json({
             message: "Ứng tuyển thành công",
@@ -223,10 +243,27 @@ const updateApplicationStatus = async (req, res) => {
             });
         }
 
-        await applicationModel.updateApplicationStatus(
-            applicationId,
-            status
-        );
+        await applicationModel.updateApplicationStatus(applicationId, status);
+
+        try {
+            const [studentRows] = await db.execute(
+                `SELECT u.email, sp.full_name
+                 FROM applications a
+                 JOIN student_profiles sp ON a.student_id = sp.id
+                 JOIN users u ON sp.user_id = u.id
+                 WHERE a.id = ?`,
+                [applicationId]
+            );
+            if (studentRows[0]?.email) {
+                await sendEmail({
+                    to: studentRows[0].email,
+                    subject: status === "ACCEPTED" ? "Hồ sơ ứng tuyển được chấp nhận" : "Cập nhật hồ sơ ứng tuyển",
+                    text: `Hồ sơ ứng tuyển của bạn cho vị trí "${job.title}" đã được ${status === "ACCEPTED" ? "chấp nhận" : "từ chối"}.`
+                });
+            }
+        } catch (mailError) {
+            console.error("Student application outcome email error:", mailError.message);
+        }
 
         return res.status(200).json({
             message: status === "ACCEPTED"
