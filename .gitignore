@@ -16,3 +16,25 @@ database/studentjob_marketplace.sql
 
 # Frontend production build
 frontend/dist/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build
+dist/
+**/dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Backups
+**/src(backup)/
+*.backup.txt
+*.zip
+types-resolution.txt
+
+# Temporary test files
+frontend/src/testChatSocket.ts

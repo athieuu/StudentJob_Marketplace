@@ -45,6 +45,22 @@ const getAllJobs = async () => {
     return rows;
 };
 
+const getJobsByEmployerUserId = async (userId) => {
+    const [rows] = await db.execute(
+        `SELECT j.*, ep.company_name,
+                ep.user_id AS employer_user_id
+         FROM jobs j
+         INNER JOIN employer_profiles ep
+            ON j.employer_id = ep.id
+         WHERE ep.user_id = ?
+         ORDER BY j.created_at DESC`,
+        [userId]
+    );
+
+    return rows;
+};
+
+
 const getJobById = async (id) => {
     const [rows] = await db.execute(
         `SELECT j.*, ep.company_name
@@ -107,6 +123,7 @@ const updateJob = async (id, employerId, job) => {
 module.exports = {
     createJob,
     getAllJobs,
+    getJobsByEmployerUserId,
     getJobById,
     updateJob,
     getEmployerProfileId

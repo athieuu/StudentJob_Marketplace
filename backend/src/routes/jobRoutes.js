@@ -5,6 +5,7 @@ const router = express.Router();
 const {
     createJob,
     getAllJobs,
+    getMyJobs,
     getJobById,
     updateJob
 } = require("../controllers/jobController");
@@ -15,6 +16,14 @@ const {
 } = require("../middleware/authMiddleware");
 
 router.get("/", getAllJobs);
+
+router.get(
+    "/mine",
+    authenticateToken,
+    authorizeRole("EMPLOYER"),
+    getMyJobs
+);
+
 router.get("/:id", getJobById);
 
 router.post(

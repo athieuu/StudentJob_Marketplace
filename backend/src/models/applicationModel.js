@@ -43,12 +43,21 @@ const getApplicationsByStudentId = async (studentId) => {
 // Nhà tuyển dụng xem hồ sơ ứng tuyển vào tin của mình
 const getApplicationsByJobId = async (jobId, employerId) => {
     const [rows] = await db.execute(
-        `SELECT a.*, j.title AS job_title,
-                u.email AS student_email
+        `SELECT
+            a.*,
+            j.title AS job_title,
+            sp.id AS student_profile_id,
+            sp.user_id AS student_user_id,
+            sp.full_name,
+            sp.phone,
+            sp.university,
+            sp.major,
+            u.email AS student_email
          FROM applications a
          JOIN jobs j ON a.job_id = j.id
          JOIN employer_profiles ep ON j.employer_id = ep.id
-         JOIN users u ON a.student_id = u.id
+         JOIN student_profiles sp ON a.student_id = sp.id
+         JOIN users u ON sp.user_id = u.id
          WHERE a.job_id = ?
            AND ep.id = ?
          ORDER BY a.applied_at DESC`,

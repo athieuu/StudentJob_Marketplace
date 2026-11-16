@@ -50,9 +50,11 @@ const validateJob = (body, isUpdate = false) => {
     }
 
     if (deadline !== undefined && deadline !== null && deadline !== "") {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) ||
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(deadline) ||
             Number.isNaN(Date.parse(`${deadline}T00:00:00Z`)) ||
-            new Date(`${deadline}T00:00:00Z`).toISOString().slice(0, 10) !== deadline) {
+            new Date(`${deadline}T00:00:00Z`).toISOString().slice(0, 10) !== deadline
+        ) {
             return "deadline phải có định dạng YYYY-MM-DD";
         }
     }
@@ -64,7 +66,6 @@ const validateJob = (body, isUpdate = false) => {
     return null;
 };
 
-
 const createJob = async (req, res) => {
     try {
         const error = validateJob(req.body);
@@ -73,10 +74,7 @@ const createJob = async (req, res) => {
             return res.status(400).json({ message: error });
         }
 
-        // Lấy ID hồ sơ nhà tuyển dụng từ user đang đăng nhập
-        const employerProfileId = await jobModel.getEmployerProfileId(
-            req.user.id
-        );
+        const employerProfileId = await jobModel.getEmployerProfileId(req.user.id);
 
         if (!employerProfileId) {
             return res.status(404).json({
@@ -89,9 +87,9 @@ const createJob = async (req, res) => {
             employer_id: employerProfileId
         });
 
-        // Email admin la tac vu phu; khong rollback tin neu SMTP tam loi.
         try {
             const adminEmails = await getAdminEmails();
+
             if (adminEmails.length) {
                 await sendEmail({
                     to: adminEmails.join(","),
@@ -112,12 +110,12 @@ const createJob = async (req, res) => {
         });
     } catch (error) {
         console.error("Create job error:", error);
+
         return res.status(500).json({
             message: "Lỗi server khi đăng tin tuyển dụng"
         });
     }
 };
-
 
 const getAllJobs = async (req, res) => {
     try {
@@ -125,7 +123,24 @@ const getAllJobs = async (req, res) => {
         return res.status(200).json({ data: jobs });
     } catch (error) {
         console.error("Get jobs error:", error.message);
-        return res.status(500).json({ message: "Lỗi server khi lấy danh sách tin" });
+
+        return res.status(500).json({
+            message: "Lỗi server khi lấy danh sách tin"
+        });
+    }
+};
+
+const getMyJobs = async (req, res) => {
+    try {
+        const jobs = await jobModel.getJobsByEmployerUserId(req.user.id);
+
+        return res.status(200).json({ data: jobs });
+    } catch (error) {
+        console.error("Get employer jobs error:", error);
+
+        return res.status(500).json({
+            message: "Lỗi server khi lấy danh sách tin của nhà tuyển dụng"
+        });
     }
 };
 
@@ -134,22 +149,28 @@ const getJobById = async (req, res) => {
         const id = Number(req.params.id);
 
         if (!Number.isSafeInteger(id) || id <= 0) {
-            return res.status(400).json({ message: "ID tin tuyển dụng không hợp lệ" });
+            return res.status(400).json({
+                message: "ID tin tuyển dụng không hợp lệ"
+            });
         }
 
         const job = await jobModel.getJobById(id);
 
         if (!job) {
-            return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
+            return res.status(404).json({
+                message: "Không tìm thấy tin tuyển dụng"
+            });
         }
 
         return res.status(200).json({ data: job });
     } catch (error) {
         console.error("Get job error:", error.message);
-        return res.status(500).json({ message: "Lỗi server khi lấy chi tiết tin" });
+
+        return res.status(500).json({
+            message: "Lỗi server khi lấy chi tiết tin"
+        });
     }
 };
-
 
 const updateJob = async (req, res) => {
     try {
@@ -182,10 +203,7 @@ const updateJob = async (req, res) => {
             return res.status(400).json({ message: error });
         }
 
-        // Lấy đúng ID hồ sơ nhà tuyển dụng
-        const employerProfileId = await jobModel.getEmployerProfileId(
-            req.user.id
-        );
+        const employerProfileId = await jobModel.getEmployerProfileId(req.user.id);
 
         if (!employerProfileId) {
             return res.status(404).json({
@@ -201,7 +219,6 @@ const updateJob = async (req, res) => {
             });
         }
 
-        // So sánh ID hồ sơ với ID lưu trong jobs.employer_id
         if (Number(existingJob.employer_id) !== Number(employerProfileId)) {
             return res.status(403).json({
                 message: "Bạn chỉ được sửa tin tuyển dụng do mình đăng"
@@ -212,27 +229,21 @@ const updateJob = async (req, res) => {
             title: req.body.title ?? existingJob.title,
             description: req.body.description ?? existingJob.description,
             location: req.body.location === undefined
-                ? existingJob.location
-                : req.body.location,
+                ? existingJob.location : req.body.location,
             salary_min: req.body.salary_min === undefined
-                ? existingJob.salary_min
-                : req.body.salary_min,
+                ? existingJob.salary_min : req.body.salary_min,
             salary_max: req.body.salary_max === undefined
-                ? existingJob.salary_max
-                : req.body.salary_max,
+                ? existingJob.salary_max : req.body.salary_max,
             job_type: req.body.job_type ?? existingJob.job_type,
             deadline: req.body.deadline === undefined
-                ? existingJob.deadline
-                : req.body.deadline,
+                ? existingJob.deadline : req.body.deadline,
             status: req.body.status ?? existingJob.status
         };
 
         const errorAfterMerge = validateJob(updatedJob);
 
         if (errorAfterMerge) {
-            return res.status(400).json({
-                message: errorAfterMerge
-            });
+            return res.status(400).json({ message: errorAfterMerge });
         }
 
         const affectedRows = await jobModel.updateJob(
@@ -252,16 +263,17 @@ const updateJob = async (req, res) => {
         });
     } catch (error) {
         console.error("Update job error:", error);
+
         return res.status(500).json({
             message: "Lỗi server khi cập nhật tin"
         });
     }
 };
 
-
 module.exports = {
     createJob,
     getAllJobs,
+    getMyJobs,
     getJobById,
     updateJob
 };
