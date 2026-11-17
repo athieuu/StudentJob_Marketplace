@@ -1,21 +1,10 @@
 ﻿# Environment variables
 .env
-backend/.env
-frontend/.env
-
-# Dependencies
-node_modules/
-backend/node_modules/
-frontend/node_modules/
-
-# Logs
-*.log
-
-# Database dump with real data
-database/studentjob_marketplace.sql
-
-# Frontend production build
-frontend/dist/
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 
 # Dependencies
 node_modules/
@@ -24,13 +13,17 @@ node_modules/
 # Build
 dist/
 **/dist/
+build/
+coverage/
 
-# Environment
-.env
-.env.*
-!.env.example
+# Logs
+*.log
+npm-debug.log*
 
-# Backups
+# Database dump with real data
+database/studentjob_marketplace.sql
+
+# Backup files
 **/src(backup)/
 *.backup.txt
 *.zip
@@ -38,3 +31,10 @@ types-resolution.txt
 
 # Temporary test files
 frontend/src/testChatSocket.ts
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+frontend/src/App(backup).tsx

@@ -9,9 +9,9 @@ const app = express();
 const authRoutes = require("./routes/authRoutes");
 
 const roleTestRoutes = require("./routes/roleTestRoutes");
-
+const cvParserRoutes = require("./routes/cvParserRoutes");
 const jobRoutes = require("./routes/jobRoutes");
-
+const cvRoutes = require("./routes/cvRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const chatRoutes = require("./routes/chatRoutes");
@@ -23,7 +23,8 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/chat", chatRoutes);
-
+app.use("/api/cvs", cvRoutes);
+app.use("/api/cvs", cvParserRoutes);
 app.get("/", (req, res) => {
     res.json({
         message: "StudentJob Marketplace API is running!"
