@@ -1,6 +1,6 @@
 import type { User, Role, Job, Application, Review } from '../types';
 import { api, tokenStore } from './api';
-
+let userCache: User[] = [];
 let jobCache: Job[] = [];
 let applicationCache: Application[] = [];
 const notifyData = () => window.dispatchEvent(new Event('sj:data-updated'));
@@ -31,6 +31,8 @@ const mapJob = (row: any): Job => ({
 const mapApplication = (row: any, studentIdFallback?: string): Application => ({
   id: String(row.id),
   jobId: String(row.job_id),
+  jobTitle: row.job_title || '',
+  jobCompany: row.company_name || '',
   studentId: String(row.student_user_id ?? studentIdFallback ?? row.student_id),
   appliedAt: row.applied_at ? String(row.applied_at).slice(0, 10) : '',
   status: row.status,
@@ -72,12 +74,41 @@ export const store = {
   setSession: saveSession,
   reset: () => {
     saveSession(null);
+    userCache = []; 
     tokenStore.clear();
     jobCache = [];
     applicationCache = [];
     notifyData();
   },
-  users: () => [] as User[],
+  
+
+users: () => userCache,
+
+async loadUsers(): Promise<User[]> {
+  const result = await api.admin.users();
+
+  console.log("API ADMIN USERS:", result);
+
+  userCache = result.data.map((row: any): User => ({
+    id: String(row.id),
+    name: row.name || row.full_name || row.company_name || row.email,
+    email: row.email,
+    role: row.role,
+    status: row.status === "BLOCKED" ? "BLOCKED" : "ACTIVE",
+    company: row.company_name || "",
+    phone: row.phone || "",
+    university: row.university || "",
+    major: row.major || "",
+    joinedAt: row.created_at
+      ? String(row.created_at).slice(0, 10)
+      : "",
+  }));
+
+  notifyData();
+  return userCache;
+},
+
+
   jobs: () => jobCache,
   applications: () => applicationCache,
   reviews: () => [] as Review[],
@@ -108,6 +139,7 @@ export const authService = {
   logout() {
     tokenStore.clear();
     saveSession(null);
+    userCache = [];
     jobCache = [];
     applicationCache = [];
     notifyData();
@@ -169,6 +201,22 @@ export const jobService = {
 };
 
 export const applicationService = {
+
+async loadAllAdmin() {
+  const result = await api.admin.allApplications();
+
+  applicationCache = result.data.map((row: any) =>
+    mapApplication(row)
+  );
+
+  notifyData();
+
+  return {
+    applications: applicationCache,
+    statistics: result.statistics
+  };
+},
+
   all: () => applicationCache,
   async loadMine() {
     const result = await api.applications.mine();
@@ -196,10 +244,97 @@ export const applicationService = {
   },
 };
 
+
+const mapProfileToUser = (
+  row: Record<string, any>,
+  previous?: User | null
+): User => ({
+  id: String(row.id),
+  email: row.email,
+  role: row.role,
+  name: row.full_name || row.company_name || previous?.name || row.email.split('@')[0],
+  status: previous?.status || 'ACTIVE',
+  joinedAt: previous?.joinedAt || new Date().toISOString().slice(0, 10),
+  phone: row.phone || '',
+  university: row.university || '',
+  major: row.major || '',
+  bio: row.bio || '',
+  company: row.company_name || previous?.company,
+  // Hai trường này chưa được lưu bằng Profile API.
+  skills: previous?.skills || [],
+  cvUrl: previous?.cvUrl || '',
+});
+
+
+
 export const userService = {
-  save: (_user: User) => { throw new Error('The backend does not expose a profile update endpoint.'); },
-  toggleStatus: (_id: string) => { throw new Error('The backend does not expose user activation management.'); },
+  async loadProfile(): Promise<User> {
+    const result = await api.profile.get();
+    const user = mapProfileToUser(result.user, readSession());
+
+    saveSession(user);
+    notifyData();
+
+    return user;
+  },
+
+  async save(user: User): Promise<User> {
+    const payload = user.role === 'STUDENT'
+      ? {
+          full_name: user.name,
+          phone: user.phone || '',
+          university: user.university || '',
+          major: user.major || '',
+          bio: user.bio || '',
+        }
+      : {
+          company_name: user.company || user.name,
+          phone: user.phone || '',
+        };
+
+    const result = await api.profile.update(payload);
+
+    const updated = mapProfileToUser(result.user, user);
+
+    saveSession(updated);
+    notifyData();
+
+    return updated;
+  },
+
+  
+async toggleStatus(id: string): Promise<User> {
+  const current = userCache.find(user => user.id === id);
+
+  if (!current) {
+    throw new Error('Không tìm thấy người dùng');
+  }
+
+  if (current.role === 'ADMIN') {
+    throw new Error('Không thể thay đổi trạng thái ADMIN');
+  }
+
+  const newStatus = current.status === 'ACTIVE'
+    ? 'BLOCKED'
+    : 'ACTIVE';
+
+  await api.admin.updateUserStatus(id, newStatus);
+
+  const updated: User = {
+    ...current,
+    status: newStatus
+  };
+
+  userCache = userCache.map(user =>
+    user.id === id ? updated : user
+  );
+
+  notifyData();
+  return updated;
+},
+
 };
+
 export const reviewService = {
   create: (_jobId: string, _user: User, _rating: number, _comment: string) => { throw new Error('Review API is not available in the backend.'); },
 };

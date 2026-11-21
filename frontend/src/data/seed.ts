@@ -1,4 +1,4 @@
-import type { Application, Job, Review, User } from '../types';
+﻿import type { Application, Job, Review, User } from '../types';
 export const seedUsers:User[]=[
 {id:'u-student',name:'Alex Morgan',email:'student@demo.com',role:'STUDENT',status:'ACTIVE',phone:'+84 912 345 678',university:'Van Lang University',major:'Software Engineering',skills:['React','TypeScript','UI Design'],bio:'Software engineering student interested in building useful products and learning from real teams.',cvUrl:'https://example.com/alex-morgan-cv.pdf',joinedAt:'2026-01-12'},
 {id:'u-employer',name:'Jamie Nguyen',email:'employer@demo.com',role:'EMPLOYER',status:'ACTIVE',company:'Northstar Studio',phone:'+84 908 222 444',joinedAt:'2025-11-08'},
@@ -6,7 +6,7 @@ export const seedUsers:User[]=[
 {id:'u2',name:'Minh Tran',email:'minh.tran@example.com',role:'STUDENT',status:'ACTIVE',university:'HCMC University of Technology',major:'Information Systems',skills:['Excel','SQL','Research'],joinedAt:'2026-02-01'},
 {id:'u3',name:'Linh Pham',email:'linh.pham@example.com',role:'STUDENT',status:'ACTIVE',university:'Van Lang University',major:'Marketing',skills:['Content','SEO','Canva'],joinedAt:'2026-03-15'},
 {id:'u4',name:'Brightside Digital',email:'people@brightside.example',role:'EMPLOYER',status:'ACTIVE',company:'Brightside Digital',joinedAt:'2025-12-20'},
-{id:'u5',name:'Pixel Harbor',email:'careers@pixelharbor.example',role:'EMPLOYER',status:'INACTIVE',company:'Pixel Harbor',joinedAt:'2025-12-27'}];
+{id:'u5',name:'Pixel Harbor',email:'careers@pixelharbor.example',role:'EMPLOYER',status:'BLOCKED',company:'Pixel Harbor',joinedAt:'2025-12-27'}];
 const rawJobs:Omit<Job,'applicants'>[]=[
 {id:'j1',title:'Frontend Developer Intern',company:'Northstar Studio',employerId:'u-employer',category:'Technology',type:'PART_TIME',salaryMin:5000000,salaryMax:8000000,location:'Ho Chi Minh City',arrangement:'Hybrid',description:'Join a small product team building thoughtful digital experiences. You will pair with experienced engineers and ship real features used by customers.',responsibilities:['Build responsive React interfaces','Collaborate with design and backend teammates','Write maintainable, tested components'],requirements:['Currently studying software engineering or a related field','Comfortable with JavaScript fundamentals','Curious, communicative, and eager to learn'],skills:['React','TypeScript','CSS'],deadline:'2026-12-15',postedAt:'2026-10-25',status:'OPEN',moderation:'APPROVED'},
 {id:'j2',title:'Social Media Content Creator',company:'Brightside Digital',employerId:'u4',category:'Marketing',type:'PART_TIME',salaryMin:3500000,salaryMax:6000000,location:'Ho Chi Minh City',arrangement:'Hybrid',description:'Help brands tell better stories through short-form content, community engagement, and creative experiments.',responsibilities:['Plan and produce social posts','Track content performance','Support monthly campaign planning'],requirements:['Strong Vietnamese writing skills','A portfolio or sample work is a plus'],skills:['Content writing','Canva','Social media'],deadline:'2026-11-28',postedAt:'2026-10-24',status:'OPEN',moderation:'APPROVED'},
@@ -25,3 +25,4 @@ export const seedApplications:Application[]=[
 {id:'a5',jobId:'j1',studentId:'u2',appliedAt:'2026-10-24',status:'PENDING',message:'I am keen to grow my frontend skills on real products.',cvUrl:'https://example.com/minh-cv.pdf'},
 {id:'a6',jobId:'j4',studentId:'u3',appliedAt:'2026-10-19',status:'ACCEPTED',message:'Here is a small portfolio of identity and social work.',cvUrl:'https://example.com/linh-cv.pdf'}];
 export const seedReviews:Review[]=[{id:'r1',jobId:'j6',studentId:'u-student',rating:5,comment:'A supportive team with clear feedback and a great learning environment.',createdAt:'2026-10-18'},{id:'r2',jobId:'j2',studentId:'u3',rating:4,comment:'Good communication and a clear brief.',createdAt:'2026-10-12'}];
+

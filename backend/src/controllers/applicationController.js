@@ -3,7 +3,9 @@ const applicationModel = require("../models/applicationModel");
 const jobModel = require("../models/jobModel");
 const { sendEmail } = require("../services/emailService");
 const db = require("../config/db");
-
+const fs = require("fs");
+const path = require("path");
+const { uploadDir } = require("../middleware/uploadCv");
 const validStatuses = ["ACCEPTED", "REJECTED"];
 
 // Sinh viên ứng tuyển công việc
@@ -279,9 +281,157 @@ const updateApplicationStatus = async (req, res) => {
     }
 };
 
+const uploadApplicationCv = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const application = Number.isSafeInteger(id) && id > 0
+      ? await applicationModel.getApplicationById(id)
+      : null;
+
+    const studentId =
+      await applicationModel.getStudentProfileId(req.user.id);
+
+    if (
+      !application ||
+      !studentId ||
+      Number(application.student_id) !== Number(studentId)
+    ) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(403).json({
+        message: "Không có quyền cập nhật CV này"
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Vui lòng chọn file PDF"
+      });
+    }
+
+    
+    const buffer = await fs.promises.readFile(req.file.path);
+
+    // Cho phép một số byte trắng đứng trước PDF header
+    const prefix = buffer.subarray(0, 16).toString("latin1");
+    const hasPdfHeader = /^[\x00-\x20]*%PDF-\d\.\d/.test(prefix);
+
+    if (!hasPdfHeader) {
+    await fs.promises.unlink(req.file.path);
+
+    return res.status(400).json({
+        message: "File không phải PDF hợp lệ"
+    });
+}
+
+
+    const cvUrl = `private-cv:${req.file.filename}`;
+
+    await applicationModel.updateApplicationCv(id, cvUrl);
+
+    return res.json({
+      message: "Upload CV thành công",
+      cv_url: cvUrl
+    });
+  } catch (error) {
+    if (req.file) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+    }
+    console.error(error);
+    return res.status(500).json({
+      message: "Lỗi upload CV"
+    });
+  }
+};
+
+const getAuthorizedCv = async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    res.status(400).json({ message: "ID không hợp lệ" });
+    return null;
+  }
+
+  const application =
+    await applicationModel.getApplicationById(id);
+
+  if (!application) {
+    res.status(404).json({ message: "Không tìm thấy đơn" });
+    return null;
+  }
+
+  const employerId =
+    await jobModel.getEmployerProfileId(req.user.id);
+
+  const job = await jobModel.getJobById(application.job_id);
+
+  if (
+    !employerId ||
+    !job ||
+    Number(job.employer_id) !== Number(employerId)
+  ) {
+    res.status(403).json({ message: "Không có quyền xem CV" });
+    return null;
+  }
+
+  if (!application.cv_url?.startsWith("private-cv:")) {
+    res.status(404).json({
+      message: "Đơn ứng tuyển chưa có CV PDF lưu trên server"
+    });
+    return null;
+  }
+
+  const filename = application.cv_url.slice("private-cv:".length);
+
+  if (!/^[0-9a-f-]{36}\.pdf$/i.test(filename)) {
+    res.status(400).json({ message: "Đường dẫn CV không hợp lệ" });
+    return null;
+  }
+
+  const filePath = path.join(uploadDir, filename);
+
+  if (!fs.existsSync(filePath)) {
+    res.status(404).json({ message: "Không tìm thấy file CV" });
+    return null;
+  }
+
+  return filePath;
+};
+
+const viewApplicationCv = async (req, res) => {
+  try {
+    const filePath = await getAuthorizedCv(req, res);
+    if (!filePath) return;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline");
+    res.setHeader("Cache-Control", "no-store");
+    return res.sendFile(filePath);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Lỗi xem CV" });
+  }
+};
+
+const downloadApplicationCv = async (req, res) => {
+  try {
+    const filePath = await getAuthorizedCv(req, res);
+    if (!filePath) return;
+
+    res.setHeader("Cache-Control", "no-store");
+    return res.download(filePath, `CV_${req.params.id}.pdf`);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Lỗi tải CV" });
+  }
+};
+
+
 module.exports = {
-    createApplication,
-    getMyApplications,
-    getApplicationsByJob,
-    updateApplicationStatus
+  createApplication,
+  getMyApplications,
+  getApplicationsByJob,
+  updateApplicationStatus,
+  uploadApplicationCv,
+  viewApplicationCv,
+  downloadApplicationCv
 };

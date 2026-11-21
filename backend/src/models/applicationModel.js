@@ -28,10 +28,16 @@ const createApplication = async (application) => {
 // Lấy danh sách hồ sơ ứng tuyển của sinh viên
 const getApplicationsByStudentId = async (studentId) => {
     const [rows] = await db.execute(
-        `SELECT a.*, j.title AS job_title,
-                j.location, j.job_type, j.employer_id
+        `SELECT
+            a.*,
+            j.title AS job_title,
+            j.location,
+            j.job_type,
+            j.employer_id,
+            ep.company_name
          FROM applications a
-         JOIN jobs j ON a.job_id = j.id
+         LEFT JOIN jobs j ON a.job_id = j.id
+         LEFT JOIN employer_profiles ep ON j.employer_id = ep.id
          WHERE a.student_id = ?
          ORDER BY a.applied_at DESC`,
         [studentId]
@@ -114,6 +120,19 @@ const getStudentProfileId = async (userId) => {
     return rows.length > 0 ? rows[0].id : null;
 };
 
+
+const updateApplicationCv = async (applicationId, cvUrl) => {
+    const [result] = await db.execute(
+        `UPDATE applications
+         SET cv_url = ?
+         WHERE id = ?`,
+        [cvUrl, applicationId]
+    );
+
+    return result.affectedRows > 0;
+};
+
+
 module.exports = {
     createApplication,
     getApplicationsByStudentId,
@@ -121,5 +140,6 @@ module.exports = {
     getApplicationById,
     updateApplicationStatus,
     checkExistingApplication,
-    getStudentProfileId
+    getStudentProfileId,
+    updateApplicationCv
 };
