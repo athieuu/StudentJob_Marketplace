@@ -1,5 +1,65 @@
 # Database Design — StudentJob Marketplace
 
+## Implemented baseline and review (2026-11-23)
+
+The numbered migrations are the canonical fresh-install baseline. The historical
+proposal below is retained for context; this implementation section supersedes
+its changed details. All existing legacy columns, nullable core timestamps/status,
+signed INT identities, enum values and FK update/delete behavior are preserved.
+The missing CV/chat contracts and users.status are now supplied. No populated
+database upgrade is claimed; see database/README.md for backup/ALTER planning.
+
+AI Engineer review accepted in full: job_match_scores has id PK and unique
+(student_id,job_id,method,score_version), required VARCHAR(20) score_version,
+nullable input_hash CHAR(64), model VARCHAR(100), created_at and retained
+computed_at. Explanation JSON is {matched:[skill_id], missing:[skill_id],
+required_missing:[skill_id]}; the application validates shape and skill ids.
+cv_parse_results adds required success/partial/failed status, error_message(500),
+unsigned duration_ms/input_tokens/output_tokens, file_hash(64), (user_id,file_hash)
+index, prompt_version(20), nullable SMALLINT schema_version and required expires_at.
+The future writer supplies created_at plus 90 days and later purge uses an expiry
+index. No raw CV text/file column exists; structured JSON/errors still need PII
+minimization and shape validation in the future backend.
+
+student_skills adds confidence DECIMAL(4,3) checked 0..1, years_experience
+DECIMAL(3,1) checked nonnegative and nullable cv_parse_result_id with SET NULL.
+student_profiles adds nullable ai_processing_consent_at with no default consent.
+method, parser, both skill source columns use VARCHAR(20) and future application
+validation rather than ENUM. The parse table is created before student_skills.
+No disagreement with the AI review; enum status remains deliberately constrained.
+
+Index review against actual model/controller/socket SQL:
+
+| Query | Implemented index / finding |
+|---|---|
+| user email, profile user_id, OTP email | Unique keys support point lookup/upsert. |
+| public jobs and admin moderation, ORDER BY created_at | (moderation_status,created_at); proposal's intervening status column removed because current public query never filters status. |
+| employer jobs | (employer_id,created_at), joined through unique employer_profiles.user_id. |
+| student and per-job applications ordered applied_at | (student_id,applied_at) and added (job_id,applied_at); unique (job_id,student_id) separately enforces concurrent duplicate rejection. |
+| CV list | (user_id,updated_at). |
+| student/employer inbox by created_at | Added (student_id,created_at) as well as (employer_id,created_at); unique pair is for upsert, not date sorting. |
+| message history | (conversation_id,created_at,id), exactly the predicate/order. |
+| admin all-applications list | Unfiltered joins and global ORDER BY applied_at,id can scan/sort; no speculative extra index before production measurements/pagination. |
+| top scores | Student/score and job/score indexes; callers must filter method/version to avoid mixing cache variants. |
+
+No production slow-query log was accessed. Demo EXPLAIN ANALYZE results are in
+database/VERIFICATION.md; tiny seed timings cannot establish production latency.
+Observed final-run simple indexed lookups completed in roughly 0.007–0.070 ms;
+the actual public jobs join used a hash join plus final sort (~0.129 ms) on two
+rows, while the admin application join scanned/sorted one application (~0.045 ms).
+These are measured demo plans, not slow-query findings or load-test guarantees.
+Unbounded job/CV/inbox/history/admin lists and SELECT * are scaling risks; future
+backend work should paginate and measure representative data before adding indexes.
+MySQL can prefer full scans/filesorts on two-row tables despite suitable indexes.
+FK support indexes are automatically supplied where no suitable prefix exists;
+see https://dev.mysql.com/doc/refman/8.4/en/create-table-foreign-keys.html.
+
+Open application obligations: same-owner checks for application CV/parse provenance,
+role-to-profile consistency, provenance policy when manual and parsed skills overlap,
+consent enforcement/revocation, expiry writer/purger, cache invalidation and canonical
+skill alias normalization. The database enforces referential existence, not these
+cross-table authorization/business policies. Embeddings remain deferred.
+
 _Status: proposed on branch `KhangTran/pm-ai-analysis` (2026-11-23). Owner-approved direction: keep MySQL 8, versioned SQL migrations, AI tables created now, embeddings deferred. Implementation: `database/migrations/*.sql`, `database/seeds/*.sql`, `database/docker-compose.yml`, `database/README.md`._
 
 ---

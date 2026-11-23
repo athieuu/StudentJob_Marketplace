@@ -1,5 +1,31 @@
 # Decisions
 
+### D-10 Database baseline and AI schema review — CONFIRMED direction, implemented 2026-11-23
+
+Owner authorized MySQL 8, ordered SQL migrations, AI storage now and embeddings
+later; only a new disposable demo volume may be destroyed for verification.
+Canonical files are database/migrations/001..006 with a separate optional demo
+seed and isolated localhost Compose. Legacy SQL remains marked DEPRECATED,
+including backend/database copies; application source/dependencies stay unchanged.
+
+All AI Engineer review proposals are accepted: versioned match identity, hashes
+and model metadata, structured skill-id explanations, parse status/cost/latency/
+hash/prompt/schema metadata and required expiry, nullable consent and parse skill
+provenance, confidence/experience, and extensible VARCHAR(20) method/parser/source.
+Parse results precede student skills to satisfy FK creation order. Retain
+computed_at from the original proposal alongside created_at; it records cache
+recomputation. The future app must supply expiry at creation plus 90 days and
+perform the purge; the DB creates no scheduler/event or external provider call.
+
+Design deviations: change jobs public index from (moderation_status,status,
+created_at) to (moderation_status,created_at) because actual SQL does not filter
+status; add job/date application and student/date conversation indexes for actual
+ORDER BY patterns. Preserve legacy nullable status/timestamp and signed INT types
+instead of tightening them. Fresh-install baselines intentionally fail on rerun;
+existing deployments need separately reviewed additive ALTERs and validated backup
+rollback because MySQL DDL implicitly commits. See DB_DESIGN.md implementation
+review and database/README.md for effects, ownership checks and open policy items.
+
 _All entries below are **INFERRED** from the code on `main` @ `adc0c86` (2026-11-23); none were found written down. Confirm or correct them with the team, then change the status to `CONFIRMED`._
 
 | ID | Decision | Status |

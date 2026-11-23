@@ -5,7 +5,7 @@ _Derived from the 2026-11-23 AI-feature analysis of `main` @ `adc0c86`. Status v
 | ID | Title | Priority | Status |
 |---|---|---|---|
 | B-01 | Remove real CV PDFs from the repo and git history | P0 | TODO |
-| B-02 | Add missing `cvs`, `conversations`, `messages` tables to DB scripts | P0 | TODO |
+| B-02 | Add missing `cvs`, `conversations`, `messages` tables to DB scripts | P0 | IN PROGRESS |
 | B-03 | Fix mimetype mismatch between parser route and controller | P1 | TODO |
 | B-04 | Stop tracking root `node_modules/` | P1 | TODO |
 | B-05 | Add parser tests with fixture CVs | P1 | TODO |
@@ -28,7 +28,17 @@ _Derived from the 2026-11-23 AI-feature analysis of `main` @ `adc0c86`. Status v
 - Team decides whether to purge history (e.g. `git filter-repo`) given the repo is public on GitHub; decision recorded in DECISIONS.md.
 - If any file belongs to a real person, owner informed.
 
-### B-02 Add missing tables to DB scripts — P0, TODO
+### B-02 Add missing tables to DB scripts — P0, IN PROGRESS
+
+Database implementation delivered in ordered migrations 001–006, with demo seed,
+Compose, SQL verification and rollback guidance; legacy copies are deprecated.
+Database verification evidence: database/VERIFICATION.md. End-to-end authenticated
+CV/chat HTTP and Socket.IO smoke remains for backend integration, so the full
+original acceptance criteria are not claimed DONE. AI tables are prepared only;
+their writers, consent checks, JSON validation, expiry purge and matching endpoint
+remain future backend work (B-10/B-13), along with representative-load pagination
+and slow-query measurement. Existing populated database upgrade needs a schema
+inventory and a separately reviewed additive ALTER migration before deployment.
 Code queries `cvs` (`cvModel.js`) and `conversations` / `messages` (`chatModel.js`), but no `.sql` file under `database/` or `backend/database/` creates them. A fresh install following the README breaks CV builder and chat.
 **Acceptance criteria**
 - A migration (e.g. `database/cv_chat_migration.sql`) creates `cvs` (id, user_id FK, title, template, JSON columns personal_info/education/experience/skills/projects/certifications, created_at/updated_at) and the chat tables matching the model queries.
