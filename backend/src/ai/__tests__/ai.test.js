@@ -248,3 +248,16 @@ test('taxonomy covers eval gold skills (reports gaps)', () => {
   for (let i = 1; i <= 5; i++) for (const s of JSON.parse(fs.readFileSync(path.join(EVAL, 'jobs', `job0${i}.json`), 'utf8')).expected_skills) if (!resolveSkill(s.name)) miss.add(s.name);
   assert.deepEqual([...miss], []);
 });
+
+test('wrapData strips whitespace/case variants of closing and opening tags', () => {
+  for (const tag of ['cv_text', 'job_text', 'cv_json']) {
+    const variants = [`</${tag}>`, `</${tag} >`, `</ ${tag}>`, `< / ${tag} >`, `</${tag.toUpperCase()}>`, `</${tag}\t>`, `</${tag}\n>`, `<${tag}>`, `< ${tag} >`, `</${tag} x="1">`, `<</${tag}>${tag}>`, `</${tag}/>`];
+    for (const v of variants) {
+      const out = wrapData(tag, `a ${v} b`);
+      const inner = out.slice(`<${tag}>\n`.length, -`\n</${tag}>`.length);
+      assert.doesNotMatch(inner, new RegExp(`<\s*/?\s*${tag}`, 'i'), `${tag} variant ${JSON.stringify(v)} -> ${JSON.stringify(inner)}`);
+      assert.ok(out.startsWith(`<${tag}>\n`) && out.endsWith(`\n</${tag}>`));
+    }
+  }
+  assert.equal(wrapData('cv_text', 'keep <cv_texts> and <b>'), '<cv_text>\nkeep <cv_texts> and <b>\n</cv_text>');
+});

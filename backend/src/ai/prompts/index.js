@@ -35,8 +35,10 @@ function promptIds() {
 }
 /** Wrap untrusted text in delimiters; strips any attempt to close/open the tag from inside the data. */
 function wrapData(tag, text) {
-  const safe = String(text).replace(new RegExp(`</?${tag}\s*>`, 'gi'), '');
-  return `<${tag}>\n${safe}\n</${tag}>`;
+  const re = new RegExp('<\\s*/?\\s*' + tag + '(?![A-Za-z0-9_])[^>]*>', 'gi');
+  let safe = String(text);
+  for (let prev = null; prev !== safe; ) { prev = safe; safe = safe.replace(re, ''); } // loop: '<</x>x>' must not re-form a tag
+  return '<' + tag + '>\n' + safe + '\n</' + tag + '>';
 }
 
 module.exports = { loadPrompt, promptIds, wrapData };
