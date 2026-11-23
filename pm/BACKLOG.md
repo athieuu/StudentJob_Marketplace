@@ -13,10 +13,10 @@ _Derived from the 2026-11-23 AI-feature analysis of `main` @ `adc0c86`. Status v
 | B-07 | Parser hardening: timeout, page/size caps, rate limit | P1 | TODO |
 | B-08 | Stop logging uploaded file names / PII | P2 | TODO |
 | B-09 | Improve extraction coverage (education, experience, projects) | P2 | TODO |
-| B-10 | Decide on and design a real AI/LLM CV feature (if wanted) | P2 | DECIDE |
+| B-10 | Decide on and design a real AI/LLM CV feature (if wanted) | P2 | IN PROGRESS (design in AI_DESIGN.md, owner approval pending) |
 | B-11 | Server-side validation of CV JSON payload | P2 | TODO |
 | B-12 | Complete `.env.example` (SMTP_*, EMAIL_FROM) | P3 | TODO |
-| B-13 | Real job recommendations instead of "first 3 jobs" | P3 | DECIDE |
+| B-13 | Real job recommendations instead of "first 3 jobs" | P3 | IN PROGRESS (design in AI_DESIGN.md §5) |
 | B-14 | Add CI (build + tests) | P3 | TODO |
 
 ---
@@ -90,7 +90,8 @@ Only name/email/phone/address/skills are extracted; education, experience, proje
 - Fixture-based accuracy check (≥ N synthetic CVs) reported in tests.
 - Warnings list only the fields actually not detected.
 
-### B-10 Real AI/LLM CV feature (optional) — P2, DECIDE
+### B-10 Real AI/LLM CV feature (optional) — P2, IN PROGRESS
+Design written: [AI_DESIGN.md](AI_DESIGN.md) (provider, flows, endpoints, prompts, schemas, privacy, eval plan, task split). Pending owner answers (AI_DESIGN §11); implementation tasks T1–T9 / A1–A7 / F1–F6 listed there.
 If the team wants genuine AI (structured extraction, CV feedback, job matching), design it before coding.
 **Acceptance criteria**
 - Decision record covering: provider + model id, where the key lives (backend env var only, never `VITE_*`), consent text shown before CV is sent to a third party, PII minimisation/redaction, data-retention terms of provider.
@@ -111,7 +112,8 @@ If the team wants genuine AI (structured extraction, CV feedback, job matching),
 **Acceptance criteria**
 - `.env.example` lists every variable read via `process.env` with placeholder values.
 
-### B-13 Job recommendations — P3, DECIDE
+### B-13 Job recommendations — P3, IN PROGRESS
+Designed in AI_DESIGN.md §5 (rule filter + LLM re-rank, task T7/F4).
 "Recommended" = first 3 open approved jobs from the local store.
 **Acceptance criteria**
 - Decide approach (skill-overlap scoring vs. embeddings); implement server-side endpoint; explainable "why recommended".

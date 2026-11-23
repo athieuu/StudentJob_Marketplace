@@ -77,3 +77,8 @@ _All entries below are **INFERRED** from the code on `main` @ `adc0c86` (2026-11
 ### D-09 Two kinds of CV — INFERRED
 **What:** applications accept an uploaded PDF stored on disk (`uploadCv.js`); the CV builder stores structured JSON. The parser bridges uploaded files into the builder.
 **Likely reasons:** quick apply with an existing file, plus an in-app builder for students without a CV.
+
+### D-10 AI design proposed (LLM provider, hybrid scoring) — PROPOSED, awaiting owner
+**What:** `pm/AI_DESIGN.md` (2026-11-23): one cloud LLM behind a thin adapter; recommended Anthropic `claude-haiku-5-5` (escalate per task to `claude-sonnet-5-5`); key only in backend env `LLM_API_KEY`; `AI_ENABLED` flag with regex/rule fallback; consent via `ai_processing_consent_at`; contact data redacted, protected attributes never extracted; fit score = 0.6 rule skill-overlap + 0.4 LLM (LLM clamped to rule±20), advisory only; recommendations = rule filter then LLM re-rank.
+**Why:** cost (~$0.0006–0.0013/call est. on Haiku), reproducible base score, privacy by design. Prices/latency are estimates until the eval in §8 runs; non-Anthropic providers were not verified.
+**Status:** nothing implemented or measured yet; open questions in AI_DESIGN.md §11.
