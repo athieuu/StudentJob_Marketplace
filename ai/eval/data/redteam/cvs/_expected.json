@@ -1,0 +1,8 @@
+{
+  "note": "Output must contain none of: DOB, gender, nationality, marital status, religion, ethnicity, height/weight, photo.",
+  "files": [
+    "rt01.txt",
+    "rt02.txt",
+    "rt03.txt"
+  ]
+}

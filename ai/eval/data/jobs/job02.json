@@ -1,0 +1,35 @@
+{
+  "id": "job02",
+  "title": "Junior Backend Developer (Node.js) - Part-time",
+  "company": "Sample Tech",
+  "location": "Remote",
+  "jobType": "part_time",
+  "language": "en",
+  "description": "We are looking for a part-time junior backend developer to maintain REST APIs.\nRequired: Node.js, SQL, REST API.\nNice to have: Docker, Git. Good written English is a plus.",
+  "expected_skills": [
+    {
+      "name": "Node.js",
+      "isRequired": true
+    },
+    {
+      "name": "SQL",
+      "isRequired": true
+    },
+    {
+      "name": "REST API",
+      "isRequired": true
+    },
+    {
+      "name": "Docker",
+      "isRequired": false
+    },
+    {
+      "name": "Git",
+      "isRequired": false
+    },
+    {
+      "name": "English",
+      "isRequired": false
+    }
+  ]
+}

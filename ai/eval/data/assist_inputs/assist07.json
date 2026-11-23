@@ -1,0 +1,15 @@
+{
+  "task": "bullets",
+  "cvId": "cv08",
+  "targetJobId": null,
+  "language": "en",
+  "experience": {
+    "title": "QA Intern",
+    "company": "TestLab Mau",
+    "bullets": [
+      "Executed manual test cases and logged 60 bugs in Jira",
+      "Wrote SQL queries to verify data",
+      "Basic API testing with Postman"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cv_skills.v1",
+  "title": "cv_skills v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "suggestions"
+  ],
+  "properties": {
+    "suggestions": {
+      "type": "array",
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "reason",
+          "inCv",
+          "isRequired"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 140
+          },
+          "inCv": {
+            "type": "boolean"
+          },
+          "isRequired": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

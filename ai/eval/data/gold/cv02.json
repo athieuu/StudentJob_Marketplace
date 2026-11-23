@@ -1,0 +1,74 @@
+{
+  "language": "en",
+  "summary": "Third-year software engineering student with a backend internship using Node.js and SQL.",
+  "education": [
+    {
+      "school": "Sample University of Technology",
+      "degree": "Bachelor",
+      "field": "Software Engineering",
+      "startDate": "2022-09",
+      "endDate": "2026",
+      "gpa": null
+    }
+  ],
+  "experience": [
+    {
+      "company": "Mauphan Software",
+      "title": "Backend Intern",
+      "startDate": "2025-06",
+      "endDate": "2025-09",
+      "isCurrent": false,
+      "bullets": [
+        "Built REST API endpoints in Node.js and Express for an order service",
+        "Wrote SQL queries and optimized 3 slow reports on MySQL",
+        "Containerized the service with Docker"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "Node.js",
+      "level": null
+    },
+    {
+      "name": "Express.js",
+      "level": null
+    },
+    {
+      "name": "SQL",
+      "level": null
+    },
+    {
+      "name": "MySQL",
+      "level": null
+    },
+    {
+      "name": "REST API",
+      "level": null
+    },
+    {
+      "name": "Docker",
+      "level": null
+    },
+    {
+      "name": "Git",
+      "level": null
+    },
+    {
+      "name": "English",
+      "level": null
+    }
+  ],
+  "projects": [
+    {
+      "name": "Library API",
+      "role": "Developer",
+      "description": "REST API for a library system with JWT authentication.",
+      "technologies": [
+        "Node.js",
+        "MySQL"
+      ]
+    }
+  ],
+  "certifications": []
+}

@@ -82,3 +82,16 @@ _All entries below are **INFERRED** from the code on `main` @ `adc0c86` (2026-11
 **What:** `pm/AI_DESIGN.md` (2026-11-23): one cloud LLM behind a thin adapter; recommended Anthropic `claude-haiku-5-5` (escalate per task to `claude-sonnet-5-5`); key only in backend env `LLM_API_KEY`; `AI_ENABLED` flag with regex/rule fallback; consent via `ai_processing_consent_at`; contact data redacted, protected attributes never extracted; fit score = 0.6 rule skill-overlap + 0.4 LLM (LLM clamped to rule±20), advisory only; recommendations = rule filter then LLM re-rank.
 **Why:** cost (~$0.0006–0.0013/call est. on Haiku), reproducible base score, privacy by design. Prices/latency are estimates until the eval in §8 runs; non-Anthropic providers were not verified.
 **Status:** nothing implemented or measured yet; open questions in AI_DESIGN.md §11.
+
+## D-AI-CONFIG — LLM provider is configured by the owner via env (2026-11-24)
+Decision (owner): no vendor is hard-coded. The owner supplies `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` (and optional `LLM_MODEL_HEAVY`) in the backend env. Supersedes AI_DESIGN §1.2 "Anthropic Haiku default".
+Consequences: adapter speaks one generic protocol (OpenAI-compatible chat completions, `LLM_API_STYLE=openai|anthropic` switch if needed); no vendor-specific params (no thinking/effort/sampling assumptions); JSON validity is enforced by our own Ajv validation + one repair retry, not by vendor constrained output; cost uses `AI_PRICE_TABLE` from config (unknown price => cost logged as null, budget cap falls back to call-count cap); key never in VITE_*, never logged, never committed.
+Rejected: hard-coding Anthropic (owner wants to choose provider/model himself).
+
+## D-AI-M1 — AI foundations A1–A4 delivered, not yet evaluated (2026-11-24)
+Added backend/src/ai/{prompts,schemas,scoring,skills,checks.js,__tests__} and ai/eval (synthetic dataset). 47 unit tests pass (`cd backend && npm test`), no LLM/network. Prompts use plain JSON + Ajv per D-AI-CONFIG (no `effort`). Added dependency `ajv@^8` and `npm test` to backend/package.json. Fit/rec labels are AI drafts; human labels (Q6) and skills-taxonomy PM review still pending. Uncommitted, not pushed.
+
+## D-AI-LABELS — Eval labels come from the model API, no human labelling (2026-11-24)
+Decision (owner): no human reviewer; fit/rec labels and rewrite checks are produced by an LLM judge through the same env-configured API.
+Consequences: metrics measure agreement with the judge, not with humans, so they are relative (regex vs LLM, prompt v1 vs v2), not absolute quality proof. Mitigations: judge uses LLM_MODEL_HEAVY (stronger/different model than the scorer) when set; judge run 3x and averaged, high-variance pairs flagged; deterministic checks (schema, grounding, no fabricated facts, protected attributes, injection shift) stay hard gates and need no labels. Owner may spot-check flagged pairs.
+Rejected: human Vietnamese reviewer (owner: not needed for now).

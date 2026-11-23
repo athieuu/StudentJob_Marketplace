@@ -1,0 +1,27 @@
+VO QUOC BAO
+Email: bao.vo05@example.test
+Điện thoại: 0900 000 105
+Địa chỉ: 30 Duong Mau, Quận 10
+
+MỤC TIÊU NGHỀ NGHIỆP
+Kế toán 2 năm kinh nghiệm đang chuyển sang frontend development; self-taught HTML, CSS và JavaScript.
+
+HỌC VẤN
+Đại học Tài chính Mẫu | Cử nhân - Kế toán | 2017-09 - 2021
+
+KINH NGHIỆM LÀM VIỆC
+Kế toán viên | Công ty TNHH Mẫu Kế Toán | 2021-08 - 2023-12
+- Lập báo cáo bằng Excel, đối chiếu hóa đơn hằng tháng
+- Nhập liệu và quản lý chứng từ
+
+KỸ NĂNG
+HTML, CSS, JavaScript, Excel, Kế toán, English
+
+DỰ ÁN
+Personal landing page (Author)
+- Landing page responsive bằng HTML, CSS và một ít JavaScript.
+- Công nghệ: HTML, CSS, JavaScript
+
+CHỨNG CHỈ
+JavaScript Basics - Online course (2024)
+

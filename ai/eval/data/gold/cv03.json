@@ -1,0 +1,66 @@
+{
+  "language": "vi",
+  "summary": null,
+  "education": [
+    {
+      "school": "Cao đẳng Kinh tế Mẫu",
+      "degree": "Cao đẳng",
+      "field": "Quản trị kinh doanh",
+      "startDate": "2022-09",
+      "endDate": "2025",
+      "gpa": null
+    }
+  ],
+  "experience": [
+    {
+      "company": "Cửa hàng Tiện Lợi Mẫu",
+      "title": "Nhân viên bán hàng",
+      "startDate": "2023-03",
+      "endDate": "2024-08",
+      "isCurrent": false,
+      "bullets": [
+        "Tư vấn và chăm sóc khách hàng tại quầy",
+        "Thu ngân bằng phần mềm POS, đối chiếu tiền cuối ca",
+        "Sắp xếp và kiểm kê hàng hóa hằng tuần"
+      ]
+    },
+    {
+      "company": "Quán Cà Phê Mẫu",
+      "title": "Phục vụ bàn",
+      "startDate": "2022-06",
+      "endDate": "2023-02",
+      "isCurrent": false,
+      "bullets": [
+        "Phục vụ khách giờ cao điểm, xử lý khiếu nại cơ bản"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "Chăm sóc khách hàng",
+      "level": null
+    },
+    {
+      "name": "Thu ngân",
+      "level": null
+    },
+    {
+      "name": "POS",
+      "level": null
+    },
+    {
+      "name": "Giao tiếp",
+      "level": null
+    },
+    {
+      "name": "Làm việc nhóm",
+      "level": null
+    },
+    {
+      "name": "Kiểm kê hàng hóa",
+      "level": null
+    }
+  ],
+  "projects": [],
+  "certifications": []
+}

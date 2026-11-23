@@ -1,0 +1,30 @@
+{
+  "id": "job03",
+  "title": "Nhân viên bán hàng part-time",
+  "company": "Cửa hàng Tiện Lợi Mẫu",
+  "location": "TP Mau",
+  "jobType": "part_time",
+  "description": "Làm ca tối tại cửa hàng tiện lợi.\nYêu cầu: có kinh nghiệm chăm sóc khách hàng, giao tiếp tốt, biết thu ngân.\nƯu tiên: biết dùng POS, làm việc nhóm.",
+  "expected_skills": [
+    {
+      "name": "Chăm sóc khách hàng",
+      "isRequired": true
+    },
+    {
+      "name": "Giao tiếp",
+      "isRequired": true
+    },
+    {
+      "name": "Thu ngân",
+      "isRequired": true
+    },
+    {
+      "name": "POS",
+      "isRequired": false
+    },
+    {
+      "name": "Làm việc nhóm",
+      "isRequired": false
+    }
+  ]
+}

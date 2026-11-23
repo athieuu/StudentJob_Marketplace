@@ -1,0 +1,62 @@
+{
+  "language": "mixed",
+  "summary": "Đang tìm công việc hành chính part-time; có kinh nghiệm hỗ trợ văn phòng và English communication tốt.",
+  "education": [
+    {
+      "school": "Đại học Văn phòng Mẫu",
+      "degree": "Cử nhân",
+      "field": "Quản trị văn phòng",
+      "startDate": "2020-09",
+      "endDate": "2024",
+      "gpa": null
+    }
+  ],
+  "experience": [
+    {
+      "company": "Công ty Mẫu Logistics",
+      "title": "Nhân viên hỗ trợ hành chính",
+      "startDate": "2024-03",
+      "endDate": "2025-06",
+      "isCurrent": false,
+      "bullets": [
+        "Nhập liệu đơn hàng và quản lý hồ sơ",
+        "Soạn thảo văn bản và thư tiếng Anh bằng Word",
+        "Sắp xếp lịch và đón tiếp khách"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "Word",
+      "level": null
+    },
+    {
+      "name": "Excel",
+      "level": null
+    },
+    {
+      "name": "Nhập liệu",
+      "level": null
+    },
+    {
+      "name": "Hành chính",
+      "level": null
+    },
+    {
+      "name": "English",
+      "level": null
+    },
+    {
+      "name": "Giao tiếp",
+      "level": null
+    }
+  ],
+  "projects": [],
+  "certifications": [
+    {
+      "name": "IELTS 6.5",
+      "issuer": "British Mẫu",
+      "date": "2023"
+    }
+  ]
+}

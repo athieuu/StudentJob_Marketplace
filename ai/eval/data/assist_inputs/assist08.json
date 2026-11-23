@@ -1,0 +1,15 @@
+{
+  "task": "bullets",
+  "cvId": "cv09",
+  "targetJobId": "job03",
+  "language": "vi",
+  "experience": {
+    "title": "Nhân viên kinh doanh",
+    "company": "Công ty Bán Lẻ Mẫu A",
+    "bullets": [
+      "Tư vấn khách hàng và chốt đơn mỗi ngày",
+      "Quản lý cơ sở dữ liệu khách hàng bằng Excel",
+      "Báo cáo doanh số hằng tuần"
+    ]
+  }
+}
