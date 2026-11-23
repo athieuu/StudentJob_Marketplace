@@ -1,3 +1,4 @@
+-- DEPRECATED: historical SQL only; use database/migrations/001..006 and database/README.md. Do not import alongside the canonical baseline.
 USE studentjob_marketplace;
 
 -- Tin nha tuyen dung tao se cho admin kiem duyet.

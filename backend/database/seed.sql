@@ -1,3 +1,4 @@
+-- DEPRECATED: historical SQL only; use database/migrations/001..006 and database/README.md. Do not import alongside the canonical baseline.
 -- StudentJob Marketplace
 -- Demo seed data
 -- Demo password for both accounts: Student@123

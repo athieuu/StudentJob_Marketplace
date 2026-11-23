@@ -1,5 +1,9 @@
 # StudentJob Marketplace
 
+Database setup has moved to [database/README.md](database/README.md): use the
+ordered MySQL 8 migrations and optional isolated demo Compose. Any legacy SQL
+import instructions below are superseded; the old SQL files are DEPRECATED.
+
 Nền tảng kết nối **sinh viên** với **nhà tuyển dụng** cho các công việc Part-time, Full-time và Freelance.
 
 ## 1. Project Overview

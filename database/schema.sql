@@ -1,3 +1,4 @@
+-- DEPRECATED: historical SQL only; use database/migrations/001..006 and database/README.md. Do not import alongside the canonical baseline.
 -- MySQL dump 10.13  Distrib 26.7.0, for Win64 (x86_64)
 --
 -- Host: localhost    Database: studentjob_marketplace
