@@ -13,4 +13,4 @@
 | `data/assist_inputs/` | 12 inputs: 4 summary, 4 bullets, 4 feedback |
 | `data/redteam/` | `payloads.json` (10 injection payloads) + 3 CVs with protected-attribute/photo lines |
 
-Not yet created (A5/A7): rubric results, `reports/`, eval harness. The default test run (`npm test` in `backend/`) uses no LLM and no network.
+A5 harness: `cd backend && npm run ai:eval` (needs root `.env` API_KEY/BASE_URL/MODEL_NAME; real calls, cached in `reports/raw`). Report: `reports/2026-11-24-a5.md`. Not yet done (A7): rewrite rubric + judge calibration. fit_labels are now judged by an LLM (D-AI-LABELS); the reviewer columns stay empty. The default test run (`npm test` in `backend/`) uses no LLM and no network.

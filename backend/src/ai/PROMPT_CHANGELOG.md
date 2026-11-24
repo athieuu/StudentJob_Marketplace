@@ -17,3 +17,9 @@ Prompts: cv_extract, job_skills_extract, fit_assess, job_rerank, cv_summary, cv_
 - Prompt examples are ASCII Vietnamese on purpose (diacritic-free) to keep file encoding safe; the rules say
   "keep the input language".
 - Eval status: pending (A5). Thresholds in AI_DESIGN §8.2.
+
+## 2026-11-24 — A5 real-model eval (model: sypham98/deepseek-flash; report ai/eval/reports/2026-11-24-a5.md)
+- cv_extract 1.0 -> 1.1: filled `projects`/`certifications` examples + "exactly these keys" rule. First-try schema-valid 6/10 -> 10/10 on the same model; skills/education/experience F1 1.00 on the synthetic set; 0 protected-attribute leaks.
+- job_rerank 1.0 -> 1.1: return every candidate when <=10 (rank poor fits last). 5/5 before and after on 3 test profiles; kept as a robustness guard (backend must still append omitted candidates).
+- cv_feedback 1.0 -> 1.1: explicit rubric->area enum mapping (1 invalid enum at 1.0; 4/4 valid at 1.1, n=4).
+- Unchanged and evaluated: fit_assess 1.0 (hybrid rho 0.93, MAE 5.9 vs LLM-judge), job_skills_extract 1.0 (P 0.74 R 0.95), assist prompts 1.0 (valid, no invented numbers on 8 outputs).

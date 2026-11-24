@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node --test src/ai/__tests__/ai.test.js"
+    "test": "node --test src/ai/__tests__/ai.test.js",
+    "ai:eval": "node ../ai/eval/run.js"
   },
   "keywords": [],
   "author": "",

@@ -95,3 +95,10 @@ Added backend/src/ai/{prompts,schemas,scoring,skills,checks.js,__tests__} and ai
 Decision (owner): no human reviewer; fit/rec labels and rewrite checks are produced by an LLM judge through the same env-configured API.
 Consequences: metrics measure agreement with the judge, not with humans, so they are relative (regex vs LLM, prompt v1 vs v2), not absolute quality proof. Mitigations: judge uses LLM_MODEL_HEAVY (stronger/different model than the scorer) when set; judge run 3x and averaged, high-variance pairs flagged; deterministic checks (schema, grounding, no fabricated facts, protected attributes, injection shift) stay hard gates and need no labels. Owner may spot-check flagged pairs.
 Rejected: human Vietnamese reviewer (owner: not needed for now).
+
+## D-AI-BUDGET — AI spend capped by call count, no per-token price (2026-11-25)
+Decision (owner): no AI_PRICE_TABLE entry for the configured model; the global budget is a daily call-count cap plus the per-student quotas in AI_DESIGN §7. cost_usd stays null in ai_usage.
+Rejected: USD budget (price not provided).
+
+## D-AI-A5 — real-model eval done; ship parse/fit/job-skills, add a fast model for assist/rerank (2026-11-24)
+See ai/eval/reports/2026-11-24-a5.md. Model sypham98/deepseek-flash, ~167 real calls, judge = same model (caveat). Gates pass: extraction schema 10/10 first try (after cv_extract 1.1; was 6/10), protected leaks 0, fit hybrid rho 0.93 / MAE 5.9 (rule-only 0.83 / 10.0), injection shift <=3.3 pts. Latency misses all targets (hidden reasoning tokens; fit p50 11 s, assist 6-36 s). Recommend LLM_MODEL_FAST (non-reasoning) for assist+rerank, background-cached fit, timeouts >=60 s. Prompt bumps: cv_extract 1.1, job_rerank 1.1, cv_feedback 1.1.
