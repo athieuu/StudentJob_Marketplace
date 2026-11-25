@@ -1,0 +1,25 @@
+TRAN THI LAN
+Email: lan.tran02@example.test
+Phone: +84 900 000 102
+Address: 45 Sample Street, District 3
+
+PROFILE
+Third-year software engineering student with a backend internship using Node.js and SQL.
+
+EDUCATION
+Sample University of Technology | Bachelor - Software Engineering | 2022-09 - 2026
+
+WORK EXPERIENCE
+Backend Intern | Mauphan Software | 2025-06 - 2025-09
+- Built REST API endpoints in Node.js and Express for an order service
+- Wrote SQL queries and optimized 3 slow reports on MySQL
+- Containerized the service with Docker
+
+SKILLS
+Node.js, Express.js, SQL, MySQL, REST API, Docker, Git, English
+
+PROJECTS
+Library API (Developer)
+- REST API for a library system with JWT authentication.
+- Công nghệ: Node.js, MySQL
+

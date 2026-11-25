@@ -1,0 +1,15 @@
+{
+  "task": "bullets",
+  "cvId": "cv02",
+  "targetJobId": "job02",
+  "language": "en",
+  "experience": {
+    "title": "Backend Intern",
+    "company": "Mauphan Software",
+    "bullets": [
+      "Built REST API endpoints in Node.js and Express for an order service",
+      "Wrote SQL queries and optimized 3 slow reports on MySQL",
+      "Containerized the service with Docker"
+    ]
+  }
+}

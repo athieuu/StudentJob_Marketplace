@@ -1,5 +1,9 @@
 # StudentJob Marketplace
 
+Database setup has moved to [database/README.md](database/README.md): use the
+ordered MySQL 8 migrations and optional isolated demo Compose. Any legacy SQL
+import instructions below are superseded; the old SQL files are DEPRECATED.
+
 Nền tảng kết nối **sinh viên** với **nhà tuyển dụng** cho các công việc Part-time, Full-time và Freelance.
 
 ## 1. Project Overview
@@ -61,8 +65,10 @@ StudentJob_Marketplace/
 │   ├── package.json
 │   └── package-lock.json
 ├── database/
-│   ├── schema.sql
-│   └── seed.sql
+│   ├── migrations/
+│   ├── seeds/
+│   ├── docker-compose.yml
+│   └── README.md
 └── README.md
 ```
 
@@ -100,31 +106,16 @@ COLLATE utf8mb4_unicode_ci;
 
 ### Step 3: Import database schema
 
-Mở file:
-
-```text
-database/schema.sql
-```
-
-Chạy toàn bộ script trong MySQL Workbench để tạo các bảng:
-
-- users
-- student_profiles
-- employer_profiles
-- jobs
-- applications
-
-**Lưu ý:** Chỉ chạy schema trên database mới hoặc database test. Script có thể xóa và tạo lại các bảng.
+Follow [database/README.md](database/README.md) to run the ordered migrations
+`database/migrations/001_users_profiles.sql` through `006_ai.sql` on an empty
+MySQL 8 database, or use the isolated Docker demo. The old `schema.sql` and
+`schema_with_email.sql` files are DEPRECATED.
 
 ### Step 4: Import demo data
 
-Mở file:
-
-```text
-database/seed.sql
-```
-
-Chạy toàn bộ script để tạo dữ liệu mẫu.
+For a disposable demo database only, run `database/seeds/001_demo.sql` after
+the migrations. The Docker demo runs it automatically; the old `seed.sql` is
+DEPRECATED. Demo jobs are approved and an admin account is included.
 
 Demo accounts:
 
@@ -132,6 +123,7 @@ Demo accounts:
 |---|---|---|
 | Student | student.demo@example.com | Student@123 |
 | Employer | employer.demo@example.com | Student@123 |
+| Admin | admin.demo@example.com | Student@123 |
 
 ### Step 5: Configure Backend
 

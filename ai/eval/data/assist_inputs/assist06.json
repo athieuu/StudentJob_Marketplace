@@ -1,0 +1,15 @@
+{
+  "task": "bullets",
+  "cvId": "cv03",
+  "targetJobId": "job03",
+  "language": "vi",
+  "experience": {
+    "title": "Nhân viên bán hàng",
+    "company": "Cửa hàng Tiện Lợi Mẫu",
+    "bullets": [
+      "Tư vấn và chăm sóc khách hàng tại quầy",
+      "Thu ngân bằng phần mềm POS, đối chiếu tiền cuối ca",
+      "Sắp xếp và kiểm kê hàng hóa hằng tuần"
+    ]
+  }
+}

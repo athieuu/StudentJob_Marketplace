@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cv_feedback.v1",
+  "title": "cv_feedback v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "overall",
+    "items"
+  ],
+  "properties": {
+    "overall": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "area",
+          "severity",
+          "tip"
+        ],
+        "properties": {
+          "area": {
+            "enum": [
+              "structure",
+              "summary",
+              "experience",
+              "skills",
+              "education",
+              "formatting",
+              "language"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "tip": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
+    }
+  }
+}

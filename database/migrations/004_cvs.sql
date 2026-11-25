@@ -1,0 +1,17 @@
+CREATE TABLE cvs (
+ id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ user_id INT NOT NULL,
+ title VARCHAR(255) NOT NULL,
+ template VARCHAR(50) NOT NULL DEFAULT 'modern',
+ personal_info JSON NULL, education JSON NULL, experience JSON NULL,
+ skills JSON NULL, projects JSON NULL, certifications JSON NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ INDEX idx_cvs_user_updated (user_id, updated_at),
+ CONSTRAINT fk_cv_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE applications
+ ADD COLUMN cv_id INT NULL,
+ ADD INDEX idx_applications_cv (cv_id),
+ ADD CONSTRAINT fk_application_cv FOREIGN KEY (cv_id) REFERENCES cvs(id) ON DELETE SET NULL ON UPDATE CASCADE;

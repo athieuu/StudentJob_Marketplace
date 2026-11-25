@@ -1,0 +1,780 @@
+{
+  "meta": {
+    "date": "smoke",
+    "model": "sypham98/deepseek-v4-pro",
+    "runs": 3,
+    "tasks": [
+      "extract"
+    ]
+  },
+  "extract": {
+    "rows": [
+      {
+        "id": "cv01",
+        "lang": "vi",
+        "ok": false,
+        "repaired": false,
+        "errors": [
+          "/certifications/0:required",
+          "/certifications/0:additionalProperties"
+        ],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 7,
+            "nPred": 7,
+            "nGold": 7
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 0,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        }
+      },
+      {
+        "id": "cv02",
+        "lang": "en",
+        "ok": true,
+        "repaired": true,
+        "errors": [],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 8,
+            "nPred": 8,
+            "nGold": 8
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        },
+        "ungrounded": {
+          "dropped": 0,
+          "total": 10
+        },
+        "llm": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 8,
+            "nPred": 8,
+            "nGold": 8
+          },
+          "skillsRaw": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 8,
+            "nPred": 8,
+            "nGold": 8
+          },
+          "education": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "langOk": true
+        },
+        "leaks": []
+      },
+      {
+        "id": "cv03",
+        "lang": "vi",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 2,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        },
+        "ungrounded": {
+          "dropped": 0,
+          "total": 9
+        },
+        "llm": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "skillsRaw": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "education": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 2,
+            "nPred": 2,
+            "nGold": 2,
+            "dateOk": 4,
+            "dateTotal": 4
+          },
+          "langOk": true
+        },
+        "leaks": []
+      },
+      {
+        "id": "cv04",
+        "lang": "vi",
+        "ok": false,
+        "repaired": false,
+        "errors": [
+          "/projects/0:required",
+          "/projects/0:additionalProperties"
+        ],
+        "regex": {
+          "skills": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 6
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        }
+      },
+      {
+        "id": "cv05",
+        "lang": "mixed",
+        "ok": false,
+        "repaired": false,
+        "errors": [
+          "/projects/0:additionalProperties"
+        ],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        }
+      },
+      {
+        "id": "cv06",
+        "lang": "vi",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 4,
+            "nPred": 4,
+            "nGold": 4
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 0,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        },
+        "ungrounded": {
+          "dropped": 0,
+          "total": 5
+        },
+        "llm": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 4,
+            "nPred": 4,
+            "nGold": 4
+          },
+          "skillsRaw": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 4,
+            "nPred": 4,
+            "nGold": 4
+          },
+          "education": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 0,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "langOk": true
+        },
+        "leaks": []
+      },
+      {
+        "id": "cv07",
+        "lang": "en",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 5,
+            "nPred": 5,
+            "nGold": 5
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        },
+        "ungrounded": {
+          "dropped": 0,
+          "total": 7
+        },
+        "llm": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 5,
+            "nPred": 5,
+            "nGold": 5
+          },
+          "skillsRaw": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 5,
+            "nPred": 5,
+            "nGold": 5
+          },
+          "education": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "langOk": true
+        },
+        "leaks": []
+      },
+      {
+        "id": "cv08",
+        "lang": "en",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "regex": {
+          "skills": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 6
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        },
+        "ungrounded": {
+          "dropped": 0,
+          "total": 8
+        },
+        "llm": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "skillsRaw": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "education": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "langOk": true
+        },
+        "leaks": []
+      },
+      {
+        "id": "cv09",
+        "lang": "vi",
+        "ok": true,
+        "repaired": true,
+        "errors": [],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 17,
+            "nPred": 17,
+            "nGold": 17
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 2,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 8,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        },
+        "ungrounded": {
+          "dropped": 0,
+          "total": 27
+        },
+        "llm": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 17,
+            "nPred": 17,
+            "nGold": 17
+          },
+          "skillsRaw": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 17,
+            "nPred": 17,
+            "nGold": 17
+          },
+          "education": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 2,
+            "nPred": 2,
+            "nGold": 2,
+            "dateOk": 4,
+            "dateTotal": 4
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 8,
+            "nPred": 8,
+            "nGold": 8,
+            "dateOk": 16,
+            "dateTotal": 16
+          },
+          "langOk": true
+        },
+        "leaks": []
+      },
+      {
+        "id": "cv10",
+        "lang": "mixed",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "regex": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "education": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          },
+          "experience": {
+            "p": 0,
+            "r": 0,
+            "f1": 0,
+            "tp": 0,
+            "nPred": 0,
+            "nGold": 1,
+            "dateOk": 0,
+            "dateTotal": 0
+          }
+        },
+        "ungrounded": {
+          "dropped": 0,
+          "total": 8
+        },
+        "llm": {
+          "skills": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "skillsRaw": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 6,
+            "nPred": 6,
+            "nGold": 6
+          },
+          "education": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "experience": {
+            "p": 1,
+            "r": 1,
+            "f1": 1,
+            "tp": 1,
+            "nPred": 1,
+            "nGold": 1,
+            "dateOk": 2,
+            "dateTotal": 2
+          },
+          "langOk": false
+        },
+        "leaks": []
+      }
+    ],
+    "summary": {
+      "llm": {
+        "skills": {
+          "p": 1,
+          "r": 1,
+          "f1": 1,
+          "dateAcc": null,
+          "n": 7
+        },
+        "skillsRawBeforeGrounding": {
+          "p": 1,
+          "r": 1,
+          "f1": 1,
+          "dateAcc": null,
+          "n": 7
+        },
+        "education": {
+          "p": 1,
+          "r": 1,
+          "f1": 1,
+          "dateAcc": 1,
+          "n": 7
+        },
+        "experience": {
+          "p": 1,
+          "r": 1,
+          "f1": 1,
+          "dateAcc": 1,
+          "n": 7
+        }
+      },
+      "regex": {
+        "skills": {
+          "p": 1,
+          "r": 0.831,
+          "f1": 0.908,
+          "dateAcc": null,
+          "n": 10
+        },
+        "education": {
+          "p": 0,
+          "r": 0,
+          "f1": 0,
+          "dateAcc": null,
+          "n": 10
+        },
+        "experience": {
+          "p": 0,
+          "r": 0,
+          "f1": 0,
+          "dateAcc": null,
+          "n": 10
+        }
+      },
+      "ungroundedRate": 0,
+      "protectedLeakCount": 0,
+      "languageAcc": 0.857,
+      "schemaFirstTry": 5,
+      "schemaAfterRepair": 7,
+      "n": 10
+    }
+  },
+  "calls": {
+    "totalNewCalls": 15,
+    "cacheHits": 0,
+    "errors": 0,
+    "inputTokens": 25383,
+    "outputTokens": 43619
+  },
+  "latency": {
+    "extract": {
+      "calls": 15,
+      "firstTryValid": 5,
+      "repaired": 2,
+      "failed": 3,
+      "inTok": 25383,
+      "outTok": 43619,
+      "p50ms": 18237,
+      "p95ms": 64760
+    }
+  }
+}

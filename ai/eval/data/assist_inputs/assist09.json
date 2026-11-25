@@ -1,0 +1,72 @@
+{
+  "task": "feedback",
+  "cvId": "cv04",
+  "targetJobId": "job04",
+  "language": "vi",
+  "cv": {
+    "language": "vi",
+    "summary": "Sinh vien nam 3 nganh Marketing, thich viet content va thiet ke tren Canva.",
+    "education": [
+      {
+        "school": "Dai hoc Kinh te Mau",
+        "degree": "Cu nhan",
+        "field": "Marketing",
+        "startDate": "2022-09",
+        "endDate": "2026",
+        "gpa": null
+      }
+    ],
+    "experience": [
+      {
+        "company": "Fanpage Cua Hang Mau",
+        "title": "Cong tac vien content",
+        "startDate": "2024-10",
+        "endDate": "2025-05",
+        "isCurrent": false,
+        "bullets": [
+          "Viet bai dang facebook moi tuan, tang tuong tac 30%",
+          "Thiet ke banner bang canva",
+          "Chay quang cao facebook ngan sach nho"
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "name": "Content writing",
+        "level": null
+      },
+      {
+        "name": "Canva",
+        "level": null
+      },
+      {
+        "name": "Facebook Ads",
+        "level": null
+      },
+      {
+        "name": "SEO",
+        "level": null
+      },
+      {
+        "name": "Excel",
+        "level": null
+      },
+      {
+        "name": "Giao tiep",
+        "level": null
+      }
+    ],
+    "projects": [
+      {
+        "name": "Du an truyen thong cho CLB",
+        "role": "Thanh vien",
+        "description": "Len ke hoach va dang bai cho CLB tinh nguyen cua truong.",
+        "technologies": [
+          "Canva",
+          "Facebook"
+        ]
+      }
+    ],
+    "certifications": []
+  }
+}

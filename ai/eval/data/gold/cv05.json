@@ -1,0 +1,72 @@
+{
+  "language": "mixed",
+  "summary": "Kế toán 2 năm kinh nghiệm đang chuyển sang frontend development; self-taught HTML, CSS và JavaScript.",
+  "education": [
+    {
+      "school": "Đại học Tài chính Mẫu",
+      "degree": "Cử nhân",
+      "field": "Kế toán",
+      "startDate": "2017-09",
+      "endDate": "2021",
+      "gpa": null
+    }
+  ],
+  "experience": [
+    {
+      "company": "Công ty TNHH Mẫu Kế Toán",
+      "title": "Kế toán viên",
+      "startDate": "2021-08",
+      "endDate": "2023-12",
+      "isCurrent": false,
+      "bullets": [
+        "Lập báo cáo bằng Excel, đối chiếu hóa đơn hằng tháng",
+        "Nhập liệu và quản lý chứng từ"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "HTML",
+      "level": null
+    },
+    {
+      "name": "CSS",
+      "level": null
+    },
+    {
+      "name": "JavaScript",
+      "level": null
+    },
+    {
+      "name": "Excel",
+      "level": null
+    },
+    {
+      "name": "Kế toán",
+      "level": null
+    },
+    {
+      "name": "English",
+      "level": null
+    }
+  ],
+  "projects": [
+    {
+      "name": "Personal landing page",
+      "role": "Author",
+      "description": "Landing page responsive bằng HTML, CSS và một ít JavaScript.",
+      "technologies": [
+        "HTML",
+        "CSS",
+        "JavaScript"
+      ]
+    }
+  ],
+  "certifications": [
+    {
+      "name": "JavaScript Basics",
+      "issuer": "Online course",
+      "date": "2024"
+    }
+  ]
+}

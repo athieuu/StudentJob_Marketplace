@@ -1,0 +1,1 @@
+{"tag":"judge:cv01:run1:0","text":"{\"scores\":[{\"jobId\":\"job01\",\"score\":92},{\"jobId\":\"job02\",\"score\":42},{\"jobId\":\"job03\",\"score\":15},{\"jobId\":\"job04\",\"score\":8},{\"jobId\":\"job05\",\"score\":30}]}","finish":"stop","inputTokens":1870,"outputTokens":247,"latencyMs":18698,"model":"sypham98/deepseek-flash"}

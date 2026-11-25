@@ -1,0 +1,287 @@
+{
+  "meta": {
+    "date": "assist-v1.0",
+    "model": "sypham98/deepseek-flash",
+    "runs": 3,
+    "tasks": [
+      "assist"
+    ]
+  },
+  "assist": {
+    "rows": [
+      {
+        "prompt": "cv_bullets",
+        "key": "cv02",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 8061,
+        "outTokens": 695,
+        "countOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "cv_bullets",
+        "key": "cv03",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 8695,
+        "outTokens": 999,
+        "countOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "cv_bullets",
+        "key": "cv08",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 11754,
+        "outTokens": 653,
+        "countOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "cv_bullets",
+        "key": "cv09",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 7164,
+        "outTokens": 694,
+        "countOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "cv_feedback",
+        "key": "cv04",
+        "ok": true,
+        "repaired": true,
+        "errors": [],
+        "firstErrors": [
+          "/items/5/area:enum"
+        ],
+        "latencyMs": 12324,
+        "outTokens": 905,
+        "items": 8
+      },
+      {
+        "prompt": "cv_feedback",
+        "key": "cv06",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 18685,
+        "outTokens": 2663,
+        "items": 7
+      },
+      {
+        "prompt": "cv_feedback",
+        "key": "cv09",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 26616,
+        "outTokens": 4372,
+        "items": 8
+      },
+      {
+        "prompt": "cv_feedback",
+        "key": "cv10",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 17018,
+        "outTokens": 1400,
+        "items": 8
+      },
+      {
+        "prompt": "cv_skills_suggest",
+        "key": "cv01:job02",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 12706,
+        "outTokens": 1876,
+        "n": 5
+      },
+      {
+        "prompt": "cv_skills_suggest",
+        "key": "cv03:job04",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 9733,
+        "outTokens": 692,
+        "n": 4
+      },
+      {
+        "prompt": "cv_skills_suggest",
+        "key": "cv05:job01",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 8945,
+        "outTokens": 980,
+        "n": 3
+      },
+      {
+        "prompt": "cv_summary",
+        "key": "cv01",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 6718,
+        "outTokens": 471,
+        "lenOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "cv_summary",
+        "key": "cv03",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 11012,
+        "outTokens": 1712,
+        "lenOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "cv_summary",
+        "key": "cv05",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 19826,
+        "outTokens": 2267,
+        "lenOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "cv_summary",
+        "key": "cv07",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 6563,
+        "outTokens": 534,
+        "lenOk": true,
+        "newNumbers": false
+      },
+      {
+        "prompt": "job_rerank",
+        "key": "cv01",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 5551,
+        "outTokens": 289,
+        "returned": 5,
+        "of": 5,
+        "idsValid": true
+      },
+      {
+        "prompt": "job_rerank",
+        "key": "cv03",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 19258,
+        "outTokens": 2824,
+        "returned": 5,
+        "of": 5,
+        "idsValid": true
+      },
+      {
+        "prompt": "job_rerank",
+        "key": "cv09",
+        "ok": true,
+        "repaired": false,
+        "errors": [],
+        "firstErrors": [],
+        "latencyMs": 9070,
+        "outTokens": 438,
+        "returned": 5,
+        "of": 5,
+        "idsValid": true
+      }
+    ]
+  },
+  "calls": {
+    "totalNewCalls": 19,
+    "cacheHits": 0,
+    "errors": 0,
+    "inputTokens": 29650,
+    "outputTokens": 25974
+  },
+  "latency": {
+    "assist:cv_summary": {
+      "calls": 4,
+      "firstTryValid": 4,
+      "repaired": 0,
+      "failed": 0,
+      "inTok": 6033,
+      "outTok": 4984,
+      "p50ms": 6718,
+      "p95ms": 19826
+    },
+    "assist:cv_bullets": {
+      "calls": 4,
+      "firstTryValid": 4,
+      "repaired": 0,
+      "failed": 0,
+      "inTok": 5364,
+      "outTok": 3041,
+      "p50ms": 8061,
+      "p95ms": 11754
+    },
+    "assist:cv_feedback": {
+      "calls": 5,
+      "firstTryValid": 3,
+      "repaired": 1,
+      "failed": 0,
+      "inTok": 8499,
+      "outTok": 10850,
+      "p50ms": 17474,
+      "p95ms": 26616
+    },
+    "assist:cv_skills_suggest": {
+      "calls": 3,
+      "firstTryValid": 3,
+      "repaired": 0,
+      "failed": 0,
+      "inTok": 4590,
+      "outTok": 3548,
+      "p50ms": 9733,
+      "p95ms": 12706
+    },
+    "assist:job_rerank": {
+      "calls": 3,
+      "firstTryValid": 3,
+      "repaired": 0,
+      "failed": 0,
+      "inTok": 5164,
+      "outTok": 3551,
+      "p50ms": 9070,
+      "p95ms": 19258
+    }
+  }
+}

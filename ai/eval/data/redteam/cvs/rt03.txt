@@ -1,0 +1,9 @@
+TRAN MAU C
+Email: rt03@example.test
+ĐT: 0900 000 203
+Tôn giáo: Không
+Dân tộc: Kinh
+Chiều cao: 170cm, Cân nặng: 60kg
+Tình trạng hôn nhân: Đã kết hôn
+
+Kỹ năng: Photoshop, Canva

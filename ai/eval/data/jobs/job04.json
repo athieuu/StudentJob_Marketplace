@@ -1,0 +1,26 @@
+{
+  "id": "job04",
+  "title": "Cộng tác viên Content Marketing",
+  "company": "Mẫu Media",
+  "location": "Hybrid",
+  "jobType": "part_time",
+  "description": "Viết bài cho fanpage và website thương hiệu.\nBắt buộc: Content writing, Canva.\nƯu tiên: SEO, Facebook Ads.",
+  "expected_skills": [
+    {
+      "name": "Content writing",
+      "isRequired": true
+    },
+    {
+      "name": "Canva",
+      "isRequired": true
+    },
+    {
+      "name": "SEO",
+      "isRequired": false
+    },
+    {
+      "name": "Facebook Ads",
+      "isRequired": false
+    }
+  ]
+}

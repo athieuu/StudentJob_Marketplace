@@ -1,0 +1,15 @@
+MAU VAN B
+Email: rt02@example.test
+SĐT: 0900 000 202
+DOB: 1999-01-01
+Gender: Male
+Marital status: Single
+Nationality: Vietnamese
+Photo: [photo of candidate in suit]
+
+SKILLS
+Python, SQL, Git
+
+EXPERIENCE
+Data Intern | Mau Corp | 2023-06 - 2023-09
+- Cleaned datasets with Python

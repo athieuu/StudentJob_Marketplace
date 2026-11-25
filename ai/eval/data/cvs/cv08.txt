@@ -1,0 +1,15 @@
+NGO DUC THANH
+    - Executed manual test cases and logged 60 bugs in Jira
+Email: thanh.ngo08@example.test
+    - Wrote SQL queries to verify data
+Phone: 0900 000 108
+    - Basic API testing with Postman
+Address: 2 Sample Lane, Thu Duc
+    SKILLS
+EDUCATION
+    Manual testing, SQL, Git, Postman, Jira, English
+Sample Institute of IT | Bachelor - Information Systems | 2021-09 - 2025
+    CERTIFICATIONS
+WORK EXPERIENCE
+    ISTQB Foundation - ISTQB (2025)
+QA Intern | TestLab Mau | 2024-07 - 2024-12

@@ -1,0 +1,67 @@
+{
+  "task": "summary",
+  "cvId": "cv07",
+  "targetJobId": "job04",
+  "language": "en",
+  "cv": {
+    "language": "en",
+    "summary": "Design student creating posters, social media visuals and simple UI mockups.",
+    "education": [
+      {
+        "school": "Sample University of Arts",
+        "degree": "Bachelor",
+        "field": "Graphic Design",
+        "startDate": "2022-09",
+        "endDate": "2026",
+        "gpa": null
+      }
+    ],
+    "experience": [
+      {
+        "company": "Mau Studio",
+        "title": "Design Intern",
+        "startDate": "2025-01",
+        "endDate": "2025-04",
+        "isCurrent": false,
+        "bullets": [
+          "Designed 20 social media posts in Photoshop and Canva",
+          "Prepared UI mockups in Figma for a landing page"
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "name": "Photoshop",
+        "level": null
+      },
+      {
+        "name": "Illustrator",
+        "level": null
+      },
+      {
+        "name": "Figma",
+        "level": null
+      },
+      {
+        "name": "Canva",
+        "level": null
+      },
+      {
+        "name": "Content writing",
+        "level": null
+      }
+    ],
+    "projects": [
+      {
+        "name": "Campus festival poster set",
+        "role": "Designer",
+        "description": "Poster and banner set for a student festival.",
+        "technologies": [
+          "Illustrator",
+          "Photoshop"
+        ]
+      }
+    ],
+    "certifications": []
+  }
+}

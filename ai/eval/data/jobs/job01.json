@@ -1,0 +1,34 @@
+{
+  "id": "job01",
+  "title": "Frontend Developer Intern",
+  "company": "Mauphan Web",
+  "location": "TP Mau",
+  "jobType": "internship",
+  "description": "Thực tập sinh frontend tham gia xây dựng giao diện web cho sản phẩm nội bộ.\nYêu cầu bắt buộc: JavaScript, React, HTML, CSS.\nƯu tiên: Git, TypeScript.",
+  "expected_skills": [
+    {
+      "name": "JavaScript",
+      "isRequired": true
+    },
+    {
+      "name": "React",
+      "isRequired": true
+    },
+    {
+      "name": "HTML",
+      "isRequired": true
+    },
+    {
+      "name": "CSS",
+      "isRequired": true
+    },
+    {
+      "name": "Git",
+      "isRequired": false
+    },
+    {
+      "name": "TypeScript",
+      "isRequired": false
+    }
+  ]
+}
