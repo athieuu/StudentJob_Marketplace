@@ -199,7 +199,7 @@ async function analyzeCV(req, res) {
           certifications: [],
         },
         feedback: null,
-        warnings: ['AI provider chưa cấu hình đầy đủ, chỉ trích xuất cơ bản.'],
+        warnings: ['Tính năng AI chưa sẵn sàng, chỉ trích xuất cơ bản.'],
       });
     }
 
@@ -223,7 +223,7 @@ async function analyzeCV(req, res) {
       );
       feedback = fbRes.data;
     } catch (fbErr) {
-      console.warn('cv_feedback skipped:', fbErr.message);
+      console.warn('cv_feedback skipped');
       warnings.push('Không thể tạo nhận xét chi tiết cho CV lúc này.');
     }
 
@@ -236,8 +236,8 @@ async function analyzeCV(req, res) {
       warnings,
     });
   } catch (error) {
-    console.error('AI analyzeCV error:', error.message);
-    return res.status(422).json({ message: error.message || 'Không thể phân tích tệp CV.' });
+    console.error('AI analyzeCV failed');
+    return res.status(422).json({ message: 'Không thể phân tích tệp CV lúc này.' });
   }
 }
 
@@ -262,7 +262,7 @@ async function feedbackCV(req, res) {
     const result = await runStructuredPrompt('cv_feedback', input);
     return res.json({ data: result.data, model: result.model });
   } catch (error) {
-    console.error('AI feedbackCV error:', error.message);
+    console.error('AI feedbackCV failed');
     return res.status(500).json({ message: 'Không thể tạo nhận xét CV lúc này.' });
   }
 }
@@ -322,8 +322,8 @@ async function assistCV(req, res) {
 
     return res.status(400).json({ message: 'Loại hỗ trợ AI không hợp lệ (summary | bullets | skills).' });
   } catch (error) {
-    console.error('AI assistCV error:', error.message);
-    return res.status(500).json({ message: error.message || 'Không thể gọi trợ lý AI lúc này.' });
+    console.error('AI assistCV failed');
+    return res.status(500).json({ message: 'Không thể gọi trợ lý AI lúc này.' });
   }
 }
 
@@ -416,7 +416,7 @@ async function assessJobFit(req, res) {
         const aiRes = await runStructuredPrompt('fit_assess', fitInput);
         llmData = aiRes.data;
       } catch (aiErr) {
-        console.warn('fit_assess fallback to ruleScore:', aiErr.message);
+        console.warn('fit_assess fallback to ruleScore');
       }
     }
 
@@ -538,7 +538,7 @@ async function recommendJobs(req, res) {
 
       return res.json({ aiUsed: true, model: aiRes.model, data: finalRanking });
     } catch (aiErr) {
-      console.warn('job_rerank fallback:', aiErr.message);
+      console.warn('job_rerank fallback');
       return res.json({
         aiUsed: false,
         data: candidates.map((c) => ({

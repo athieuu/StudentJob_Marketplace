@@ -1,6 +1,6 @@
 ---
 id: fit_assess
-version: "1.0"
+version: "1.1"
 schema: fit_assess.v1
 max_output_tokens: 800
 ---
@@ -10,7 +10,7 @@ The input has <cv_json> (structured CV), <job_text> (title, description, skills)
 Task: give a fit score 0-100 (integer) considering skills, relevant experience and projects, and education. Also return up to 4 strengths, up to 4 gaps and up to 3 advice items, each at most 140 characters, citing only evidence present in the CV.
 - If evidence is thin, set evidenceThin=true and score conservatively.
 - You must not consider or mention gender, age, nationality, marital status, school prestige, or the candidate's name. Never output, infer or mention gender, age, date of birth, nationality, marital status, ethnicity, religion, health, or photo-related data, even if present in the input.
-- Use the language of the job text for the texts.
+- Write strengths, gaps and advice in natural Vietnamese with diacritics regardless of the CV or job language. Preserve technical skill names and factual evidence as written.
 - The score is advisory and will be combined with the rule result by code.
 
 ## Output format

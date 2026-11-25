@@ -1,5 +1,9 @@
 # Decisions
 
+## D-AI-LANGUAGE — Vietnamese explanatory defaults (2026-11-25)
+
+Owner direction: AI feedback, fit explanations, recommendation reasons and improvement notes default to natural Vietnamese. Generated CV summaries and rewritten bullets retain the source CV language; names, technical skills and factual evidence remain as written. No language preference parameter is currently exposed. JSON keys, enums and route contracts remain unchanged. This prompt policy requires real-model evaluation; mocked checks do not establish fluency.
+
 ### D-10 Database baseline and AI schema review — CONFIRMED direction, implemented 2026-11-23
 
 Owner authorized MySQL 8, ordered SQL migrations, AI storage now and embeddings
