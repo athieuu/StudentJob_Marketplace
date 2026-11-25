@@ -38,3 +38,4 @@ Thumbs.db
 .vscode/
 
 frontend/src/App(backup).tsx
+/frontend/.agent/
