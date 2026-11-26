@@ -270,10 +270,40 @@ const updateJob = async (req, res) => {
     }
 };
 
+const deleteJob = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            return res.status(400).json({ message: "ID tin tuyển dụng không hợp lệ" });
+        }
+
+        const employerProfileId = await jobModel.getEmployerProfileId(req.user.id);
+        if (!employerProfileId) {
+            return res.status(404).json({ message: "Không tìm thấy hồ sơ nhà tuyển dụng" });
+        }
+
+        const existingJob = await jobModel.getJobById(id);
+        if (!existingJob) {
+            return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
+        }
+
+        if (Number(existingJob.employer_id) !== Number(employerProfileId)) {
+            return res.status(403).json({ message: "Bạn chỉ được xóa tin tuyển dụng do mình đăng" });
+        }
+
+        await jobModel.deleteJob(id, employerProfileId);
+        return res.status(200).json({ message: "Đã xóa tin tuyển dụng thành công" });
+    } catch (error) {
+        console.error("Delete job error:", error);
+        return res.status(500).json({ message: "Lỗi server khi xóa tin tuyển dụng" });
+    }
+};
+
 module.exports = {
     createJob,
     getAllJobs,
     getMyJobs,
     getJobById,
-    updateJob
+    updateJob,
+    deleteJob
 };

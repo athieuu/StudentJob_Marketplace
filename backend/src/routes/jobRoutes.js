@@ -7,7 +7,8 @@ const {
     getAllJobs,
     getMyJobs,
     getJobById,
-    updateJob
+    updateJob,
+    deleteJob
 } = require("../controllers/jobController");
 
 const {
@@ -38,6 +39,13 @@ router.put(
     authenticateToken,
     authorizeRole("EMPLOYER"),
     updateJob
+);
+
+router.delete(
+    "/:id",
+    authenticateToken,
+    authorizeRole("EMPLOYER"),
+    deleteJob
 );
 
 module.exports = router;

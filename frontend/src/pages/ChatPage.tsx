@@ -236,99 +236,142 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="sj-chat-page">
-      <h1>Tin nhắn</h1>
-
-      <p className="muted">
-        Trao đổi trực tiếp giữa sinh viên và nhà tuyển dụng.
-      </p>
+    <div className="space-y-4">
+      <div>
+        <span className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider block mb-1">
+          TRAO ĐỔI TRỰC TIẾP
+        </span>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-foreground)]">
+          Tin nhắn
+        </h1>
+        <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] mt-1">
+          Trao đổi trực tiếp giữa sinh viên và nhà tuyển dụng theo thời gian thực.
+        </p>
+      </div>
 
       {error && (
-        <div className="sj-chat-error" role="alert">
+        <div
+          className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium"
+          role="alert"
+        >
           {error}
         </div>
       )}
 
-      <div className="sj-chat-layout">
+      <div className="grid grid-cols-1 md:grid-cols-12 bg-white border border-[var(--color-border)] rounded-xl overflow-hidden min-h-[520px] md:h-[calc(100vh-14rem)]">
         {/* Danh sách cuộc trò chuyện */}
-        <aside className="sj-chat-list">
-          <h3>Cuộc trò chuyện</h3>
+        <aside className="md:col-span-4 border-b md:border-b-0 md:border-r border-[var(--color-border)] flex flex-col bg-[var(--color-background)]/40">
+          <div className="px-4 py-3.5 border-b border-[var(--color-border)] bg-white flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-foreground)]">
+              Cuộc trò chuyện ({conversations.length})
+            </h3>
+          </div>
 
-          {loading ? (
-            <p>Đang tải...</p>
-          ) : conversations.length === 0 ? (
-            <p className="muted">
-              Chưa có cuộc trò chuyện.
-            </p>
-          ) : (
-            conversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                className={`sj-chat-item ${
-                  selected === conversation.id ? "active" : ""
-                }`}
-                onClick={() => setSelected(conversation.id)}
-              >
-                <strong>
-                  {getConversationName(conversation)}
-                </strong>
+          <div className="flex-1 overflow-y-auto divide-y divide-[var(--color-border)] max-h-60 md:max-h-none">
+            {loading ? (
+              <p className="p-4 text-xs text-[var(--color-muted-foreground)]">
+                Đang tải...
+              </p>
+            ) : conversations.length === 0 ? (
+              <p className="p-6 text-xs text-center text-[var(--color-muted-foreground)]">
+                Chưa có cuộc trò chuyện nào.
+              </p>
+            ) : (
+              conversations.map((conversation) => {
+                const isActive = selected === conversation.id;
+                return (
+                  <button
+                    key={conversation.id}
+                    type="button"
+                    className={`w-full text-left px-4 py-3.5 transition-colors duration-150 cursor-pointer flex items-center justify-between gap-2 ${
+                      isActive
+                        ? "bg-[var(--color-primary)]/10 border-l-4 border-l-[var(--color-primary)]"
+                        : "hover:bg-white"
+                    }`}
+                    onClick={() => setSelected(conversation.id)}
+                  >
+                    <strong
+                      className={`text-xs font-bold truncate block ${
+                        isActive
+                          ? "text-[var(--color-primary)]"
+                          : "text-[var(--color-foreground)]"
+                      }`}
+                    >
+                      {getConversationName(conversation)}
+                    </strong>
 
-                <small>
-                  {new Date(
-                    conversation.created_at
-                  ).toLocaleDateString("vi-VN")}
-                </small>
-              </button>
-            ))
-          )}
+                    <small className="text-[11px] text-[var(--color-muted-foreground)] shrink-0">
+                      {new Date(conversation.created_at).toLocaleDateString("vi-VN")}
+                    </small>
+                  </button>
+                );
+              })
+            )}
+          </div>
         </aside>
 
         {/* Nội dung cuộc trò chuyện */}
-        <section className="sj-chat-main">
+        <section className="md:col-span-8 flex flex-col bg-white min-h-[380px]">
           {selected ? (
             <>
-              <div className="sj-chat-header">
-                <strong>
+              <div className="px-4 py-3.5 border-b border-[var(--color-border)] flex items-center justify-between gap-3">
+                <strong className="text-sm font-bold text-[var(--color-foreground)] truncate">
                   {selectedConversation
                     ? getConversationName(selectedConversation)
                     : `Cuộc trò chuyện #${selected}`}
                 </strong>
 
-                <span>
-                  <RefreshCw size={14} />
+                <span
+                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                    connected
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                      : "bg-amber-50 text-amber-800 border-amber-200"
+                  }`}
+                >
+                  <RefreshCw size={11} className={!connected ? "animate-spin" : ""} />
                   {connected ? "Đã kết nối" : "Đang kết nối..."}
                 </span>
               </div>
 
-              <div className="sj-chat-messages">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[var(--color-background)]/30">
                 {messages.length === 0 && (
-                  <p className="muted">
-                    Chưa có tin nhắn.
+                  <p className="text-xs text-center text-[var(--color-muted-foreground)] py-8">
+                    Chưa có tin nhắn nào. Hãy gửi lời chào!
                   </p>
                 )}
 
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`sj-chat-bubble ${
-                      myId === message.sender_id ? "mine" : ""
-                    }`}
-                  >
-                    <div>{message.content}</div>
-
-                    <small>
-                      {new Date(
-                        message.created_at
-                      ).toLocaleString("vi-VN")}
-                    </small>
-                  </div>
-                ))}
+                {messages.map((message) => {
+                  const isMine = myId === message.sender_id;
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                          isMine
+                            ? "bg-[var(--color-primary)] text-white"
+                            : "bg-white border border-[var(--color-border)] text-[var(--color-foreground)]"
+                        }`}
+                      >
+                        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                        <small
+                          className={`block text-[10px] mt-1 ${
+                            isMine ? "text-white/75 text-right" : "text-[var(--color-muted-foreground)]"
+                          }`}
+                        >
+                          {new Date(message.created_at).toLocaleString("vi-VN")}
+                        </small>
+                      </div>
+                    </div>
+                  );
+                })}
 
                 <div ref={bottomRef} />
               </div>
 
               <form
-                className="sj-chat-compose"
+                className="p-3 border-t border-[var(--color-border)] bg-white flex items-center gap-2.5"
                 onSubmit={(e) => {
                   e.preventDefault();
                   send();
@@ -340,22 +383,21 @@ export default function ChatPage() {
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Nhập tin nhắn..."
                   maxLength={5000}
+                  className="flex-1 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
                 />
 
                 <button
-                  className="btn btn-primary"
-                  disabled={
-                    sending || !draft.trim() || !connected
-                  }
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-bold bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 disabled:opacity-50 transition-colors duration-150 cursor-pointer shrink-0"
+                  disabled={sending || !draft.trim() || !connected}
                   type="submit"
                 >
-                  <Send size={16} />
+                  <Send size={14} />
                   Gửi
                 </button>
               </form>
             </>
           ) : (
-            <div className="sj-chat-empty">
+            <div className="flex-1 flex items-center justify-center p-8 text-xs text-[var(--color-muted-foreground)]">
               Chọn một cuộc trò chuyện để bắt đầu.
             </div>
           )}

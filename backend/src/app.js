@@ -17,6 +17,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 app.use(cors());
 app.use(express.json());
 app.use("/api/auth", authRoutes);
@@ -29,6 +30,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/cvs", cvRoutes);
 app.use("/api/cvs", cvParserRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/reviews", reviewRoutes);
 app.get("/", (req, res) => {
     res.json({
         message: "StudentJob Marketplace API is running!"

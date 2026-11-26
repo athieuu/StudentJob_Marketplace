@@ -120,11 +120,20 @@ const updateJob = async (id, employerId, job) => {
     return result.affectedRows;
 };
 
+const deleteJob = async (id, employerId) => {
+    const [result] = await db.execute(
+        `DELETE FROM jobs WHERE id = ? AND employer_id = ?`,
+        [id, employerId]
+    );
+    return result.affectedRows;
+};
+
 module.exports = {
     createJob,
     getAllJobs,
     getJobsByEmployerUserId,
     getJobById,
     updateJob,
+    deleteJob,
     getEmployerProfileId
 };
