@@ -155,7 +155,7 @@ async function readCvFileText(file) {
     const parser = new PDFParse({ data: new Uint8Array(file.buffer) });
     try {
       const result = await parser.getText();
-      return result.text || '';
+      return result.pages.map((page) => page.text).join('\n');
     } finally {
       await parser.destroy().catch(() => {});
     }
@@ -174,12 +174,17 @@ async function analyzeCV(req, res) {
     return res.status(400).json({ message: 'Vui lòng chọn file PDF hoặc DOCX.' });
   }
 
+  let rawText;
   try {
-    const rawText = await readCvFileText(req.file);
-    if (!rawText.trim()) {
-      return res.status(422).json({ message: 'Không đọc được văn bản từ file. PDF dạng ảnh cần OCR.' });
-    }
+    rawText = await readCvFileText(req.file);
+  } catch {
+    return res.status(422).json({ message: 'Không thể đọc tệp CV. Vui lòng kiểm tra tệp PDF hoặc DOCX và thử lại.' });
+  }
+  if (!rawText.trim()) {
+    return res.status(422).json({ message: 'Không tìm thấy văn bản trong tệp. Hãy dùng PDF có thể chọn chữ hoặc DOCX; nếu PDF là ảnh, hãy chuyển ảnh thành văn bản bằng OCR trước khi tải lên.' });
+  }
 
+  try {
     const { contact, anonymized } = extractContactAndStripPII(rawText);
     const injectionFlag = detectInjection(rawText);
 
@@ -237,7 +242,7 @@ async function analyzeCV(req, res) {
     });
   } catch (error) {
     console.error('AI analyzeCV failed');
-    return res.status(422).json({ message: 'Không thể phân tích tệp CV lúc này.' });
+    return res.status(422).json({ message: 'Không thể phân tích CV bằng AI lúc này. Vui lòng thử lại sau.' });
   }
 }
 
