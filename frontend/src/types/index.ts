@@ -3,7 +3,7 @@ export type JobType = 'PART_TIME' | 'FULL_TIME' | 'FREELANCE';
 export type JobStatus = 'OPEN' | 'CLOSED';
 export type ApplicationStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
 export type ModerationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-export interface User { id:string; name:string; email:string; role:Role; status: 'ACTIVE' | 'BLOCKED'; company?:string; phone?:string; university?:string; major?:string; skills?:string[]; bio?:string; cvUrl?:string; joinedAt:string }
+export interface User { id:string; name:string; email:string; role:Role; status: 'ACTIVE' | 'BLOCKED'; company?:string; phone?:string; address?:string; description?:string; university?:string; major?:string; skills?:string[]; bio?:string; cvUrl?:string; joinedAt:string }
 
 export interface Job {
   id: string;

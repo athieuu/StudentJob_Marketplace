@@ -103,6 +103,22 @@ export const aiService = {
     });
   },
 
+  async assistSkills(cv: CVPayload, targetJob: string) {
+    return aiRequest<{
+      data: {
+        suggestions: Array<{
+          name: string;
+          reason: string;
+          inCv: boolean;
+          isRequired: boolean;
+        }>;
+      };
+    }>('/cv/assist', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'skills', cv, targetJob }),
+    });
+  },
+
   async assessJobFit(jobId: string | number, cv?: CVPayload) {
     return aiRequest<{ data: JobFitResult }>(`/jobs/${jobId}/fit`, {
       method: 'POST',

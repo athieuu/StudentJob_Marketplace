@@ -42,7 +42,7 @@ const editProfile = async (req, res) => {
         }
 
         const allowedFields = role === "STUDENT"
-            ? ["full_name", "phone", "university", "major", "bio"]
+            ? ["full_name", "phone", "university", "major", "bio", "cv_url"]
             : ["company_name", "phone", "address", "description"];
 
         const data = {};
@@ -61,6 +61,16 @@ const editProfile = async (req, res) => {
             data[field] = value === undefined
                 ? (current[field] ?? null)
                 : (value === null ? null : value.trim());
+        }
+
+        if (role === "STUDENT" && req.body?.skills !== undefined) {
+            if (Array.isArray(req.body.skills)) {
+                data.skills = req.body.skills.map((s) => String(s).trim()).filter(Boolean);
+            } else if (typeof req.body.skills === "string") {
+                data.skills = req.body.skills.split(",").map((s) => s.trim()).filter(Boolean);
+            } else {
+                return res.status(400).json({ message: "skills phải là mảng hoặc chuỗi" });
+            }
         }
 
         const requiredField = role === "STUDENT"

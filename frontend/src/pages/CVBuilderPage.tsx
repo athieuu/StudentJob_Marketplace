@@ -194,8 +194,37 @@ export default function CVBuilderPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
-  const [aiBusy, setAiBusy] = useState<'summary' | number | null>(null);
+  const [aiBusy, setAiBusy] = useState<'summary' | 'skills' | number | null>(null);
+  const [targetJobText, setTargetJobText] = useState('');
+  const [skillSuggestions, setSkillSuggestions] = useState<
+    Array<{ name: string; reason: string; inCv: boolean; isRequired: boolean }>
+  >([]);
   const uploadRef = useRef<HTMLInputElement>(null);
+
+  const suggestSkills = async () => {
+    if (!targetJobText.trim()) {
+      setError('Vui lòng nhập hoặc dán mô tả công việc mục tiêu để AI gợi ý kỹ năng.');
+      return;
+    }
+    setAiBusy('skills');
+    setError('');
+    try {
+      const res = await aiService.assistSkills(liveCV, targetJobText.trim());
+      setSkillSuggestions(res.data.suggestions || []);
+      setNotice('AI đã gợi ý các kỹ năng phù hợp theo công việc mục tiêu.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Không thể gọi AI gợi ý kỹ năng.');
+    } finally {
+      setAiBusy(null);
+    }
+  };
+
+  const addSuggestedSkill = (name: string) => {
+    const current = skillsText.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!current.some((s) => s.toLowerCase() === name.toLowerCase())) {
+      setSkillsText([...current, name].join(', '));
+    }
+  };
 
   const suggestSummary = async () => {
     setAiBusy('summary');
@@ -747,7 +776,7 @@ export default function CVBuilderPage() {
               )}
 
               {/* Skills section */}
-              <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-3">
+              <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
                 <h2 className="text-base font-bold text-[var(--color-foreground)] pb-2 border-b border-[var(--color-border)]">
                   Kỹ năng chuyên môn
                 </h2>
@@ -761,6 +790,52 @@ export default function CVBuilderPage() {
                     onChange={(e) => setSkillsText(e.target.value)}
                     placeholder="VD: React, TypeScript, Tailwind CSS, Git, Figma"
                   />
+                </div>
+
+                {/* AI Skills Suggestion */}
+                <div className="p-3.5 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-[var(--color-foreground)] flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-[var(--color-primary)]" />
+                      AI Gợi ý kỹ năng theo vị trí ứng tuyển
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={aiBusy !== null}
+                      onClick={() => void suggestSkills()}
+                    >
+                      {aiBusy === 'skills' ? 'Đang phân tích...' : 'Gợi ý kỹ năng'}
+                    </Button>
+                  </div>
+                  <input
+                    className="w-full bg-white text-xs text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 outline-none focus:border-[var(--color-primary)]"
+                    value={targetJobText}
+                    onChange={(e) => setTargetJobText(e.target.value)}
+                    placeholder="Dán tên vị trí hoặc mô tả công việc mục tiêu (VD: Thực tập sinh ReactJS, cần Git, SQL...)"
+                  />
+                  {skillSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {skillSuggestions.map((sg) => (
+                        <button
+                          key={sg.name}
+                          type="button"
+                          onClick={() => addSuggestedSkill(sg.name)}
+                          title={sg.reason}
+                          className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-colors duration-150 cursor-pointer ${
+                            sg.inCv
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-white text-[var(--color-primary)] border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/10'
+                          }`}
+                        >
+                          {!sg.inCv && <Plus size={11} />}
+                          {sg.name}
+                          {sg.isRequired && <span className="text-rose-600">*</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

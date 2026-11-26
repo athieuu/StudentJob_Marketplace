@@ -3,6 +3,7 @@ import { api, tokenStore } from './api';
 let userCache: User[] = [];
 let jobCache: Job[] = [];
 let applicationCache: Application[] = [];
+let reviewCache: Review[] = [];
 const notifyData = () => window.dispatchEvent(new Event('sj:data-updated'));
 
 const mapJob = (row: any): Job => ({
@@ -111,7 +112,7 @@ async loadUsers(): Promise<User[]> {
 
   jobs: () => jobCache,
   applications: () => applicationCache,
-  reviews: () => [] as Review[],
+  reviews: () => reviewCache,
   saveUsers: (_: User[]) => undefined,
   saveJobs: (_: any[]) => undefined,
   saveApplications: (_: any[]) => undefined,
@@ -195,8 +196,11 @@ export const jobService = {
     else await api.jobs.create(payload);
     await this.load();
   },
-  remove: (_id: string) => {
-    throw new Error('The backend does not expose a job deletion endpoint.');
+  async remove(id: string) {
+    if (/^\d+$/.test(id)) {
+      await api.jobs.remove(id);
+    }
+    await this.load();
   },
 };
 
@@ -260,9 +264,10 @@ const mapProfileToUser = (
   major: row.major || '',
   bio: row.bio || '',
   company: row.company_name || previous?.company,
-  // Hai trường này chưa được lưu bằng Profile API.
-  skills: previous?.skills || [],
-  cvUrl: previous?.cvUrl || '',
+  address: row.address || previous?.address || '',
+  description: row.description || previous?.description || '',
+  skills: Array.isArray(row.skills) ? row.skills : (previous?.skills || []),
+  cvUrl: row.cv_url ?? previous?.cvUrl ?? '',
 });
 
 
@@ -286,10 +291,14 @@ export const userService = {
           university: user.university || '',
           major: user.major || '',
           bio: user.bio || '',
+          cv_url: user.cvUrl || '',
+          skills: user.skills || [],
         }
       : {
           company_name: user.company || user.name,
           phone: user.phone || '',
+          address: user.address || '',
+          description: user.description || '',
         };
 
     const result = await api.profile.update(payload);
@@ -336,5 +345,42 @@ async toggleStatus(id: string): Promise<User> {
 };
 
 export const reviewService = {
-  create: (_jobId: string, _user: User, _rating: number, _comment: string) => { throw new Error('Review API is not available in the backend.'); },
+  all: () => reviewCache,
+  async load(jobId?: string) {
+    const res = await api.reviews.list(jobId);
+    const mapped: Review[] = (res.data || []).map((r: any) => ({
+      id: String(r.id),
+      jobId: String(r.job_id),
+      studentId: String(r.user_id),
+      rating: Number(r.rating),
+      comment: r.comment || '',
+      createdAt: r.created_at ? String(r.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    }));
+    if (jobId) {
+      reviewCache = [...reviewCache.filter((x) => x.jobId !== String(jobId)), ...mapped];
+    } else {
+      reviewCache = mapped;
+    }
+    notifyData();
+    return mapped;
+  },
+  async create(jobId: string, user: User, rating: number, comment: string) {
+    const res = await api.reviews.create({
+      job_id: Number(jobId),
+      rating,
+      comment,
+    });
+    const r = res.data;
+    const item: Review = {
+      id: String(r.id),
+      jobId: String(r.job_id),
+      studentId: String(r.user_id || user.id),
+      rating: Number(r.rating),
+      comment: r.comment,
+      createdAt: r.created_at ? String(r.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    };
+    reviewCache = [item, ...reviewCache];
+    notifyData();
+    return item;
+  },
 };

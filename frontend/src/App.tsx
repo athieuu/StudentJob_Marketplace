@@ -1055,6 +1055,11 @@ function JobDetails() {
   const [fitLoading, setFitLoading] = useState(false);
   const [fitError, setFitError] = useState("");
 
+  useEffect(() => {
+    if (!id) return;
+    reviewService.load(id).catch(() => {});
+  }, [id]);
+
   async function runFitAssessment() {
     if (!job) return;
     setFitLoading(true);
@@ -1762,7 +1767,12 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   if (user)
-    return <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace />;
+    return (
+      <Navigate
+        to={user.role === "STUDENT" ? "/" : `/${user.role.toLowerCase()}/dashboard`}
+        replace
+      />
+    );
 
   return (
     <AuthLayout
@@ -1798,24 +1808,24 @@ function Login() {
             <button
               type="button"
               onClick={() => {
-                setEmail("student@studentjob.vn");
-                setPassword("password123");
+                setEmail("student.demo@example.com");
+                setPassword("Student@123");
               }}
               className="text-left p-2 rounded-md bg-white border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-colors duration-150 cursor-pointer"
             >
               <div className="text-xs font-bold text-[var(--color-foreground)]">Sinh viên</div>
-              <div className="text-[10px] text-[var(--color-muted-foreground)] truncate">student@studentjob.vn</div>
+              <div className="text-[10px] text-[var(--color-muted-foreground)] truncate">student.demo@example.com</div>
             </button>
             <button
               type="button"
               onClick={() => {
-                setEmail("employer@studentjob.vn");
-                setPassword("password123");
+                setEmail("employer.demo@example.com");
+                setPassword("Student@123");
               }}
               className="text-left p-2 rounded-md bg-white border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-colors duration-150 cursor-pointer"
             >
               <div className="text-xs font-bold text-[var(--color-foreground)]">Nhà tuyển dụng</div>
-              <div className="text-[10px] text-[var(--color-muted-foreground)] truncate">employer@studentjob.vn</div>
+              <div className="text-[10px] text-[var(--color-muted-foreground)] truncate">employer.demo@example.com</div>
             </button>
           </div>
         </div>
@@ -1838,7 +1848,9 @@ function Login() {
               }
               toast(`Chào mừng trở lại, ${u.name.split(" ")[0]}!`);
               const from = (location.state as { from?: string } | null)?.from;
-              navigate(from || `/${u.role.toLowerCase()}/dashboard`, {
+              const defaultTarget =
+                u.role === "STUDENT" ? "/" : `/${u.role.toLowerCase()}/dashboard`;
+              navigate(from || defaultTarget, {
                 replace: true,
               });
             } catch (err) {
@@ -1930,7 +1942,12 @@ function Register() {
   const [loading, setLoading] = useState(false);
 
   if (user)
-    return <Navigate to={`/${user.role.toLowerCase()}/dashboard`} replace />;
+    return (
+      <Navigate
+        to={user.role === "STUDENT" ? "/" : `/${user.role.toLowerCase()}/dashboard`}
+        replace
+      />
+    );
 
   const requestOtp = async (e: FormEvent) => {
     e.preventDefault();
@@ -2321,6 +2338,7 @@ function AuthLayout({
 function Shell({ role, children }: { role: Role; children: ReactNode }) {
   const { user, setUser } = useContext(AuthContext);
   const [mobile, setMobile] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const navigate = useNavigate();
   const links =
     role === "STUDENT"
@@ -2340,6 +2358,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
             ["Tổng quan", "/employer/dashboard", LayoutDashboard],
             ["Tin tuyển dụng", "/employer/jobs", BriefcaseBusiness],
             ["Ứng viên", "/employer/jobs", Users],
+            ["Hồ sơ công ty", "/employer/profile", UserRound],
             ["Tin nhắn", "/employer/messages", Mail],
           ]
         : [
@@ -2348,6 +2367,37 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
             ["Duyệt tin tuyển dụng", "/admin/jobs", ShieldCheck],
             ["Đơn ứng tuyển", "/admin/applications", ClipboardList],
           ];
+
+  const notifications =
+    role === "STUDENT"
+      ? applicationService
+          .all()
+          .filter((a) => a.studentId === user?.id && a.status !== "PENDING")
+          .slice(0, 4)
+          .map((a) => ({
+            id: a.id,
+            text: `Đơn ứng tuyển "${a.jobTitle || "Công việc"}" đã được ${a.status === "ACCEPTED" ? "chấp nhận" : "từ chối"}.`,
+            to: `/student/applications/${a.id}`,
+          }))
+      : role === "EMPLOYER"
+        ? applicationService
+            .all()
+            .filter((a) => a.status === "PENDING")
+            .slice(0, 4)
+            .map((a) => ({
+              id: a.id,
+              text: `${a.studentName || "Ứng viên mới"} đã nộp hồ sơ vào vị trí "${a.jobTitle || "Tin tuyển dụng"}".`,
+              to: `/employer/applications/${a.id}`,
+            }))
+        : jobService
+            .all()
+            .filter((j) => j.moderation === "PENDING")
+            .slice(0, 4)
+            .map((j) => ({
+              id: j.id,
+              text: `Tin "${j.title}" (${j.company}) đang chờ kiểm duyệt.`,
+              to: "/admin/jobs",
+            }));
   const title =
     role === "STUDENT"
       ? "Không gian sinh viên"
@@ -2355,34 +2405,56 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
         ? "Không gian tuyển dụng"
         : "Quản trị hệ thống";
   return (
-    <div className="dashboard-shell">
-      <aside className={`dashboard-sidebar ${mobile ? "sidebar-open" : ""}`}>
-        <Link className="brand sidebar-brand" to="/">
-          <span className="brand-mark">
-            <GraduationCap size={23} />
-          </span>
-          <span>
-            student<span className="brand-blue">job</span>
-          </span>
-        </Link>
-        <div className="workspace-label">KHÔNG GIAN LÀM VIỆC</div>
-        <div className="workspace-pill">
-          <span className={`workspace-icon ${role.toLowerCase()}`}>
-            {role === "STUDENT" ? (
-              <GraduationCap size={17} />
-            ) : role === "EMPLOYER" ? (
-              <Building2 size={17} />
-            ) : (
-              <ShieldCheck size={17} />
-            )}
-          </span>
-          <span>
-            <b>{title}</b>
-            <small>Tài khoản {roleLabel(role)}</small>
-          </span>
-          <ChevronDown size={15} />
+    <div className="min-h-screen flex bg-[var(--color-background)]">
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-[var(--color-border)] flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 ${
+          mobile ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 px-5 border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
+          <Link className="inline-flex items-center gap-2.5 text-[var(--color-foreground)] cursor-pointer" to="/">
+            <span className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center">
+              <GraduationCap size={18} />
+            </span>
+            <span className="font-extrabold text-lg tracking-tight">
+              student<span className="text-[var(--color-primary)]">job</span>
+            </span>
+          </Link>
+          <button
+            type="button"
+            className="lg:hidden p-1.5 rounded-lg text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] cursor-pointer"
+            aria-label="Đóng menu"
+            onClick={() => setMobile(false)}
+          >
+            <X size={18} />
+          </button>
         </div>
-        <nav className="side-nav">
+
+        <div className="p-4 border-b border-[var(--color-border)]">
+          <div className="text-[10px] font-bold text-[var(--color-muted-foreground)] uppercase tracking-wider mb-2">
+            Không gian làm việc
+          </div>
+          <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)]">
+            <span className="w-8 h-8 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center shrink-0">
+              {role === "STUDENT" ? (
+                <GraduationCap size={16} />
+              ) : role === "EMPLOYER" ? (
+                <Building2 size={16} />
+              ) : (
+                <ShieldCheck size={16} />
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <b className="text-xs font-bold text-[var(--color-foreground)] block truncate">{title}</b>
+              <small className="text-[11px] text-[var(--color-muted-foreground)] block truncate">
+                Tài khoản {roleLabel(role)}
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {links.map(([label, path, Icon]) => (
             <NavLink
               key={label as string}
@@ -2394,98 +2466,163 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
               }
               onClick={() => setMobile(false)}
               className={({ isActive }) =>
-                `side-nav-link ${isActive ? "active" : ""}`
+                `flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors duration-150 cursor-pointer ${
+                  isActive
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-foreground)]"
+                }`
               }
             >
-              <Icon size={18} />
-              <span>{label as string}</span>
-              {label === "Đơn ứng tuyển" && (
-                <span className="nav-count">
-                  {
-                    applicationService
-                      .all()
-                      .filter((a) => a.studentId === user?.id).length
-                  }
+              <span className="flex items-center gap-2.5 min-w-0">
+                <Icon size={17} className="shrink-0" />
+                <span className="truncate">{label as string}</span>
+              </span>
+              {label === "Đơn ứng tuyển" && role === "STUDENT" && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-white/20 border border-current/20 shrink-0">
+                  {applicationService.all().filter((a) => a.studentId === user?.id).length}
                 </span>
               )}
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <div className="help-card">
-            <span className="help-card-icon">
-              <CircleHelp size={18} />
-            </span>
-            <b>Cần hỗ trợ?</b>
-            <p>Chúng tôi luôn sẵn sàng hỗ trợ bạn.</p>
-            <a href="mailto:hello@studentjob.demo">
-              Liên hệ hỗ trợ <ArrowRight size={13} />
+
+        <div className="p-3 border-t border-[var(--color-border)] space-y-2.5 shrink-0">
+          <div className="p-3 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--color-foreground)]">
+              <CircleHelp size={15} className="text-[var(--color-primary)]" />
+              <span>Cần hỗ trợ?</span>
+            </div>
+            <p className="text-[11px] text-[var(--color-muted-foreground)] leading-snug">
+              Chúng tôi luôn sẵn sàng hỗ trợ bạn.
+            </p>
+            <a
+              href="mailto:hello@studentjob.demo"
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-primary)] hover:underline"
+            >
+              Liên hệ hỗ trợ <ArrowRight size={12} />
             </a>
           </div>
+
           <button
-            className="side-nav-link"
+            type="button"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
             onClick={() => {
               authService.logout();
               setUser(null);
               navigate("/");
             }}
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
             <span>Đăng xuất</span>
           </button>
-          <div className="sidebar-profile">
-            <span className="avatar">
+
+          <div className="flex items-center gap-2.5 p-2 rounded-lg border border-[var(--color-border)] bg-white">
+            <span className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center text-xs font-bold shrink-0">
               {user?.name
                 .split(" ")
                 .map((x) => x[0])
                 .slice(0, 2)
                 .join("")}
             </span>
-            <span>
-              <b>{user?.name}</b>
-              <small>{user?.email}</small>
-            </span>
-            <Settings size={17} />
+            <div className="min-w-0 flex-1">
+              <b className="text-xs font-bold text-[var(--color-foreground)] block truncate">
+                {user?.name}
+              </b>
+              <small className="text-[10px] text-[var(--color-muted-foreground)] block truncate">
+                {user?.email}
+              </small>
+            </div>
           </div>
         </div>
       </aside>
+
       {mobile && (
         <button
-          className="mobile-overlay"
+          type="button"
+          className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden cursor-pointer"
           aria-label="Đóng menu"
           onClick={() => setMobile(false)}
         />
       )}
-      <div className="dashboard-main">
-        <header className="dashboard-topbar">
-          <button
-            className="mobile-menu dash-menu"
-            onClick={() => setMobile(!mobile)}
-            aria-label="Mở hoặc đóng thanh bên"
-          >
-            <Menu />
-          </button>
-          <div className="breadcrumb">
-            Không gian làm việc <span>/</span> <b>{roleLabel(role)}</b>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 bg-white border-b border-[var(--color-border)] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="lg:hidden p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] cursor-pointer"
+              onClick={() => setMobile(!mobile)}
+              aria-label="Mở hoặc đóng thanh bên"
+            >
+              <Menu size={18} />
+            </button>
+            <div className="text-xs text-[var(--color-muted-foreground)] flex items-center gap-1.5">
+              <span className="hidden sm:inline">Không gian làm việc</span>
+              <span className="hidden sm:inline">/</span>
+              <b className="text-[var(--color-foreground)] font-bold">{roleLabel(role)}</b>
+            </div>
           </div>
-          <div className="topbar-actions">
-            <span className="topbar-date">
-              <CalendarDays size={15} />
+
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)] bg-[var(--color-background)] border border-[var(--color-border)] px-2.5 py-1.5 rounded-lg">
+              <CalendarDays size={14} className="text-[var(--color-primary)]" />
               {new Date().toLocaleDateString("vi-VN", {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               })}
             </span>
-            <button
-              className="icon-btn notification-btn"
-              aria-label="Thông báo"
-              onClick={() => window.alert("Bạn chưa có thông báo mới.")}
-            >
-              <Bell size={18} />
-              <i />
-            </button>
-            <span className="avatar top-avatar">
+            <div className="relative">
+              <button
+                type="button"
+                className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer relative"
+                aria-label="Thông báo"
+                onClick={() => setNotifOpen((o) => !o)}
+              >
+                <Bell size={16} />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--color-primary)] text-white text-[10px] font-bold flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-[var(--color-border)] rounded-xl shadow-lg p-3 z-50 space-y-2">
+                  <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
+                    <b className="text-xs font-bold text-[var(--color-foreground)]">
+                      Thông báo mới
+                    </b>
+                    <button
+                      type="button"
+                      className="text-[11px] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] cursor-pointer"
+                      onClick={() => setNotifOpen(false)}
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                  {notifications.length ? (
+                    <div className="divide-y divide-[var(--color-border)] max-h-64 overflow-y-auto">
+                      {notifications.map((n) => (
+                        <Link
+                          key={n.id}
+                          to={n.to}
+                          onClick={() => setNotifOpen(false)}
+                          className="block py-2 text-xs text-[var(--color-foreground)] hover:text-[var(--color-primary)] transition-colors duration-150"
+                        >
+                          {n.text}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--color-muted-foreground)] py-4 text-center">
+                      Hiện chưa có thông báo mới.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <span className="w-8 h-8 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-xs font-bold shrink-0">
               {user?.name
                 .split(" ")
                 .map((x) => x[0])
@@ -2494,11 +2631,15 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
             </span>
           </div>
         </header>
-        <main className="dashboard-content">{children}</main>
-        <footer className="dashboard-footer">
+
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          {children}
+        </main>
+
+        <footer className="border-t border-[var(--color-border)] bg-white px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--color-muted-foreground)]">
           <span>© 2026 StudentJob Marketplace</span>
-          <span>
-            Vì thế hệ trẻ tương lai <Sparkles size={13} />
+          <span className="inline-flex items-center gap-1">
+            Nền tảng việc làm sinh viên <Sparkles size={13} className="text-[var(--color-primary)]" />
           </span>
         </footer>
       </div>
@@ -2584,17 +2725,153 @@ function Metric({
 
 function Companies() {
   const [query, setQuery] = useState("");
-  const jobs = jobService.all().filter(j => j.status === "OPEN" && j.moderation === "APPROVED");
-  const companies = Array.from(new Set(jobs.map(j => j.company))).sort((a,b) => a.localeCompare(b, "vi"));
-  const visible = companies.filter(name => name.toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
-  return <><PublicNav/><main className="sj-discovery container"><div className="sj-discovery-head"><span className="eyebrow blue-eyebrow">KHÁM PHÁ NHÀ TUYỂN DỤNG</span><h1>Công ty đang tuyển dụng</h1><p>Tìm hiểu các doanh nghiệp và xem những vị trí tuyển dụng đang mở.</p><label className="sj-discovery-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Tìm theo tên công ty" aria-label="Tìm công ty"/></label></div><div className="sj-company-grid">{visible.map(name => { const openJobs = jobs.filter(j=>j.company===name); return <article className="sj-company-card" key={name}><div className="sj-company-card-head"><CompanyMark name={name}/><span className="tag tag-green">Đang tuyển</span></div><h2>{name}</h2><p>{openJobs.length} vị trí đang tuyển dụng</p><div className="sj-company-tags">{Array.from(new Set(openJobs.map(j=>j.category))).slice(0,3).map(cat=><span key={cat}>{cat}</span>)}</div><Link className="btn btn-primary btn-sm" to={`/jobs?q=${encodeURIComponent(name)}`}>Xem việc làm <ArrowRight size={15}/></Link></article>; })}</div>{visible.length===0 && <div className="sj-empty">Không tìm thấy công ty phù hợp.</div>}</main><Footer/></>;
+  const jobs = jobService.all().filter((j) => j.status === "OPEN" && j.moderation === "APPROVED");
+  const companies = Array.from(new Set(jobs.map((j) => j.company))).sort((a, b) =>
+    a.localeCompare(b, "vi")
+  );
+  const visible = companies.filter((name) =>
+    name.toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi"))
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
+      <PublicNav />
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 sm:p-8 space-y-4">
+          <span className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider block">
+            KHÁM PHÁ NHÀ TUYỂN DỤNG
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-foreground)]">
+            Công ty đang tuyển dụng
+          </h1>
+          <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] max-w-2xl">
+            Tìm hiểu các doanh nghiệp đối tác và xem những vị trí thực tập, part-time đang mở tuyển.
+          </p>
+          <div className="relative max-w-md pt-1">
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]"
+            />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm theo tên công ty..."
+              aria-label="Tìm công ty"
+              className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
+            />
+          </div>
+        </div>
+
+        {visible.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {visible.map((name) => {
+              const openJobs = jobs.filter((j) => j.company === name);
+              return (
+                <article
+                  key={name}
+                  className="bg-white border border-[var(--color-border)] rounded-xl p-5 flex flex-col justify-between gap-4 hover:border-[var(--color-primary)]/50 transition-colors duration-150"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <CompanyMark name={name} />
+                      <Badge variant="success">Đang tuyển</Badge>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-[var(--color-foreground)]">
+                        {name}
+                      </h2>
+                      <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+                        {openJobs.length} vị trí đang tuyển dụng
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from(new Set(openJobs.map((j) => j.category)))
+                        .slice(0, 3)
+                        .map((cat) => (
+                          <span
+                            key={cat}
+                            className="text-[11px] font-medium px-2 py-0.5 rounded bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-foreground)]"
+                          >
+                            {cat}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                  <Link to={`/jobs?q=${encodeURIComponent(name)}`}>
+                    <Button variant="primary" size="sm" fullWidth>
+                      Xem việc làm <ArrowRight size={14} />
+                    </Button>
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white border border-[var(--color-border)] rounded-xl p-12 text-center">
+            <p className="text-sm text-[var(--color-muted-foreground)]">
+              Không tìm thấy công ty phù hợp với từ khóa "{query}".
+            </p>
+          </div>
+        )}
+      </main>
+      <Footer />
+    </div>
+  );
 }
+
 function SavedJobs() {
-  const {user} = useContext(AuthContext);
-  const [ids,setIds] = useState<string[]>(()=>readSaved(user?.id || ""));
-  useEffect(()=>{ const refresh=()=>setIds(readSaved(user?.id || "")); window.addEventListener("sj:saved-updated",refresh); return ()=>window.removeEventListener("sj:saved-updated",refresh); },[user?.id]);
-  const jobs=jobService.all().filter(j=>ids.includes(j.id));
-  return <><PageHeader title="Việc làm đã lưu" subtitle="Những cơ hội bạn quan tâm, được lưu trên trình duyệt này."/><div className="sj-saved-summary"><Bookmark size={20}/><span>Bạn đã lưu <b>{jobs.length}</b> công việc</span></div>{jobs.length ? <div className="job-grid sj-saved-grid">{jobs.map(job=><JobCard key={job.id} job={job}/>)}</div>:<div className="sj-empty"><Bookmark size={36}/><h3>Chưa có việc làm đã lưu</h3><p>Nhấn biểu tượng đánh dấu trên tin tuyển dụng để lưu lại và xem sau.</p><Link className="btn btn-primary" to="/jobs">Khám phá việc làm <ArrowRight size={16}/></Link></div>}</>;
+  const { user } = useContext(AuthContext);
+  const [ids, setIds] = useState<string[]>(() => readSaved(user?.id || ""));
+  useEffect(() => {
+    const refresh = () => setIds(readSaved(user?.id || ""));
+    window.addEventListener("sj:saved-updated", refresh);
+    return () => window.removeEventListener("sj:saved-updated", refresh);
+  }, [user?.id]);
+  const jobs = jobService.all().filter((j) => ids.includes(j.id));
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="DANH SÁCH QUAN TÂM"
+        title="Việc làm đã lưu"
+        subtitle="Những cơ hội bạn đánh dấu quan tâm để xem lại và ứng tuyển sau."
+      />
+
+      <div className="bg-white border border-[var(--color-border)] rounded-xl p-4 flex items-center gap-3 text-xs text-[var(--color-foreground)]">
+        <span className="w-9 h-9 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center shrink-0">
+          <Bookmark size={18} />
+        </span>
+        <span>
+          Bạn đang lưu <b className="text-[var(--color-primary)]">{jobs.length}</b> tin tuyển dụng trên trình duyệt này.
+        </span>
+      </div>
+
+      {jobs.length ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {jobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-12 text-center flex flex-col items-center">
+          <div className="w-12 h-12 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center mb-3">
+            <Bookmark size={22} />
+          </div>
+          <h3 className="text-base font-bold text-[var(--color-foreground)] mb-1">
+            Chưa có việc làm đã lưu
+          </h3>
+          <p className="text-xs text-[var(--color-muted-foreground)] max-w-xs mb-4">
+            Nhấn biểu tượng đánh dấu trên tin tuyển dụng để lưu lại và xem sau.
+          </p>
+          <Link to="/jobs">
+            <Button variant="primary" size="md">
+              Khám phá việc làm <ArrowRight size={15} />
+            </Button>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 }
 function CVAnalysis() {
   const navigate = useNavigate();
@@ -2875,35 +3152,36 @@ function CVAnalysis() {
 
 function StudentRoutes() {
   return (
-    <Shell role="STUDENT">
-      <Routes>
-        <Route path="dashboard" element={<StudentDashboard />} />
+    <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
+      <PublicNav />
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Routes>
+          <Route path="dashboard" element={<Navigate to="/" replace />} />
 
-        <Route path="profile" element={<StudentProfile />} />
-        <Route path="saved" element={<SavedJobs />} />
-        <Route path="ai-cv" element={<CVAnalysis />} />
+          <Route path="profile" element={<StudentProfile />} />
+          <Route path="saved" element={<SavedJobs />} />
+          <Route path="ai-cv" element={<CVAnalysis />} />
 
-        {/* Kiểm tra route CV */}
-        <Route path="cvs" element={<CVBuilderPage />} />
+          {/* Kiểm tra route CV */}
+          <Route path="cvs" element={<CVBuilderPage />} />
 
-        <Route path="applications" element={<StudentApplications />} />
+          <Route path="applications" element={<StudentApplications />} />
 
-        <Route path="messages" element={<ChatPage />} />
+          <Route path="messages" element={<ChatPage />} />
 
-        <Route
-          path="applications/:id"
-          element={<ApplicationDetails role="STUDENT" />}
-        />
+          <Route
+            path="applications/:id"
+            element={<ApplicationDetails role="STUDENT" />}
+          />
 
-        <Route path="applications/:id/review" element={<ReviewPage />} />
+          <Route path="applications/:id/review" element={<ReviewPage />} />
 
-        {/* Kiểm tra route không khớp */}
-        <Route
-          path="*"
-          element={<Navigate to="/student/dashboard" replace />}
-        />
-      </Routes>
-    </Shell>
+          {/* Kiểm tra route không khớp */}
+          <Route path="*" element={<Navigate to="/jobs" replace />} />
+        </Routes>
+      </main>
+      <Footer />
+    </div>
   );
 }
 
@@ -3251,23 +3529,37 @@ function StudentProfile() {
 
   const update = (k: keyof typeof form, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  const completenessItems: Array<[string, unknown]> = [
+    ["Số điện thoại liên hệ", user?.phone],
+    ["Trường học", user?.university],
+    ["Chuyên ngành", user?.major],
+    ["Kỹ năng", user?.skills?.length],
+    ["Giới thiệu bản thân", user?.bio],
+    ["Liên kết CV", user?.cvUrl],
+  ];
+  const completenessPercent = Math.round(
+    (completenessItems.filter(([, v]) => Boolean(v)).length / completenessItems.length) * 100
+  );
+
+  const inputCls =
+    "w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] disabled:bg-[var(--color-background)] disabled:text-[var(--color-muted-foreground)] transition-colors duration-150";
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="YOUR PERSONAL BRAND"
-        title="My profile"
-        subtitle="Help employers get to know the person behind the application."
+        eyebrow="THƯƠNG HIỆU CÁ NHÂN"
+        title="Hồ sơ của tôi"
+        subtitle="Cập nhật thông tin học vấn, kỹ năng và CV để nhà tuyển dụng hiểu rõ hơn về bạn."
         action={
           !editing ? (
-            <button
-              className="btn btn-primary"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil size={16} /> Chỉnh sửa hồ sơ
-            </button>
+            <Button variant="primary" size="md" onClick={() => setEditing(true)}>
+              <Pencil size={15} /> Chỉnh sửa hồ sơ
+            </Button>
           ) : (
-            <button
-              className="btn btn-outline"
+            <Button
+              variant="outline"
+              size="md"
               onClick={() => {
                 setEditing(false);
                 setForm({
@@ -3281,43 +3573,55 @@ function StudentProfile() {
                 });
               }}
             >
-              Hủy
-            </button>
+              Hủy bỏ
+            </Button>
           )
         }
       />
-      <div className="profile-page-grid">
-        <section className="panel profile-main-panel">
-          <div className="profile-hero">
-            <span className="avatar profile-avatar">
-              {form.name
-                .split(" ")
-                .map((x) => x[0])
-                .slice(0, 2)
-                .join("")}
-            </span>
-            <div>
-              <h2>{form.name || "Your name"}</h2>
-              <p>
-                {form.major || "Add tương lai field of study"}{" "}
-                {form.university ? `· ${form.university}` : ""}
-              </p>
-              <span className="profile-email">
-                <Mail size={14} />
-                {user?.email}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <section className="lg:col-span-2 bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--color-border)]">
+            <div className="flex items-center gap-4">
+              <span className="w-14 h-14 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 flex items-center justify-center font-extrabold text-lg shrink-0">
+                {form.name
+                  .split(" ")
+                  .map((x) => x[0])
+                  .slice(0, 2)
+                  .join("") || "SV"}
               </span>
+              <div>
+                <h2 className="text-lg font-bold text-[var(--color-foreground)]">
+                  {form.name || "Chưa cập nhật tên"}
+                </h2>
+                <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+                  {form.major || "Chưa cập nhật chuyên ngành"}
+                  {form.university ? ` · ${form.university}` : ""}
+                </p>
+                <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)] mt-1">
+                  <Mail size={13} className="text-[var(--color-primary)]" />
+                  {user?.email}
+                </span>
+              </div>
             </div>
-            <span className="status-pill status-green">Hồ sơ sinh viên</span>
+            <Badge variant="success">Hồ sơ sinh viên</Badge>
           </div>
-          <div className="form-section-head">
-            <h3>Thông tin cá nhân</h3>
-            <p>Cập nhật thông tin để nhà tuyển dụng có thể liên hệ.</p>
+
+          <div>
+            <h3 className="text-sm font-bold text-[var(--color-foreground)]">
+              Thông tin cá nhân
+            </h3>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+              Cập nhật thông tin chính xác để nhà tuyển dụng có thể liên hệ nhanh chóng.
+            </p>
           </div>
+
           <form
-            onSubmit={(e) => {
+            className="space-y-4"
+            onSubmit={async (e) => {
               e.preventDefault();
               if (!form.name.trim()) {
-                toast("Full name is required", "error");
+                toast("Vui lòng nhập họ và tên", "error");
                 return;
               }
               const updated = {
@@ -3333,68 +3637,72 @@ function StudentProfile() {
                 bio: form.bio,
                 cvUrl: form.cvUrl,
               };
-              userService.save(updated);
-              setUser(updated);
-              setEditing(false);
-              toast("Đã lưu hồ sơ thành công!");
+              try {
+                const saved = await userService.save(updated);
+                setUser(saved);
+                setEditing(false);
+                toast("Đã lưu hồ sơ thành công!");
+              } catch (err) {
+                toast(err instanceof Error ? err.message : "Không thể lưu hồ sơ", "error");
+              }
             }}
           >
-            <div className="form-grid">
-              <Field label="Full name">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Họ và tên">
                 <input
-                  className="form-control"
+                  className={inputCls}
                   value={form.name}
                   disabled={!editing}
                   onChange={(e) => update("name", e.target.value)}
                   required
                 />
               </Field>
-              <Field label="Email address">
+              <Field label="Địa chỉ email">
                 <input
-                  className="form-control"
+                  className={inputCls}
                   value={user?.email || ""}
                   disabled
                 />
               </Field>
-              <Field label="Phone number">
+              <Field label="Số điện thoại">
                 <input
-                  className="form-control"
+                  className={inputCls}
                   value={form.phone}
                   disabled={!editing}
                   onChange={(e) => update("phone", e.target.value)}
                   placeholder="+84..."
                 />
               </Field>
-              <Field label="University">
+              <Field label="Trường đại học / Cao đẳng">
                 <input
-                  className="form-control"
+                  className={inputCls}
                   value={form.university}
                   disabled={!editing}
                   onChange={(e) => update("university", e.target.value)}
                   placeholder="Trường đại học của bạn"
                 />
               </Field>
-              <Field label="Major / field of study">
+              <Field label="Chuyên ngành">
                 <input
-                  className="form-control"
+                  className={inputCls}
                   value={form.major}
                   disabled={!editing}
                   onChange={(e) => update("major", e.target.value)}
                   placeholder="Ví dụ: Kỹ thuật phần mềm"
                 />
               </Field>
-              <Field label="Skills (comma separated)">
+              <Field label="Kỹ năng (ngăn cách bằng dấu phẩy)">
                 <input
-                  className="form-control"
+                  className={inputCls}
                   value={form.skills}
                   disabled={!editing}
                   onChange={(e) => update("skills", e.target.value)}
                   placeholder="React, SQL, Giao tiếp"
                 />
               </Field>
-              <Field label="CV URL" wide>
+              <Field label="Liên kết CV (URL)" wide>
                 <input
-                  className="form-control"
+                  className={inputCls}
                   type="url"
                   value={form.cvUrl}
                   disabled={!editing}
@@ -3402,84 +3710,89 @@ function StudentProfile() {
                   placeholder="https://..."
                 />
               </Field>
-              <Field label="About me" wide>
+              <Field label="Giới thiệu bản thân" wide>
                 <textarea
-                  className="form-control"
+                  className={inputCls}
                   rows={4}
                   value={form.bio}
                   disabled={!editing}
                   onChange={(e) => update("bio", e.target.value)}
-                  placeholder="Chia sẻ sở thích và mục tiêu nghề nghiệp của bạn..."
+                  placeholder="Chia sẻ sở thích, thế mạnh và mục tiêu nghề nghiệp của bạn..."
                 />
               </Field>
             </div>
+
             {editing && (
-              <div className="form-actions">
-                <button className="btn btn-primary" type="submit">
+              <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
+                <Button variant="primary" size="md" type="submit">
                   <Check size={16} /> Lưu thay đổi
-                </button>
+                </Button>
               </div>
             )}
           </form>
         </section>
-        <aside className="profile-side">
-          <div className="panel">
-            <div className="panel-heading">
+
+        <aside className="lg:col-span-1 space-y-6">
+          <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
               <div>
-                <h2>Mức độ hoàn thiện hồ sơ</h2>
-                <p>Mỗi bước nhỏ đều có ý nghĩa</p>
+                <h2 className="text-base font-bold text-[var(--color-foreground)]">
+                  Mức độ hoàn thiện hồ sơ
+                </h2>
+                <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+                  Hồ sơ đầy đủ giúp tăng tỷ lệ được chọn
+                </p>
               </div>
-              <Sparkles size={19} className="brand-blue" />
+              <Sparkles size={18} className="text-[var(--color-primary)] shrink-0" />
             </div>
-            <div className="strength-score">
-              <span>
-                {Math.round(
-                  ([
-                    user?.phone,
-                    user?.university,
-                    user?.major,
-                    user?.skills?.length,
-                    user?.bio,
-                    user?.cvUrl,
-                  ].filter(Boolean).length /
-                    6) *
-                    100,
-                )}
-                %
-              </span>
-              <small>hoàn thành</small>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-2xl font-extrabold text-[var(--color-primary)]">
+                  {completenessPercent}%
+                </span>
+                <span className="text-xs text-[var(--color-muted-foreground)]">hoàn thành</span>
+              </div>
+              <div className="w-full h-2 bg-[var(--color-muted)] rounded-full overflow-hidden border border-[var(--color-border)]">
+                <div
+                  className="h-full bg-[var(--color-primary)] transition-all duration-300"
+                  style={{ width: `${completenessPercent}%` }}
+                />
+              </div>
             </div>
-            <div className="strength-checks">
-              {[
-                ["Contact number", user?.phone],
-                ["University", user?.university],
-                ["Field of study", user?.major],
-                ["Skills", user?.skills?.length],
-                ["About me", user?.bio],
-                ["CV link", user?.cvUrl],
-              ].map(([l, v]) => (
-                <div key={String(l)}>
-                  <span className={v ? "check-done" : "check-empty"}>
-                    {v ? <Check size={12} /> : null}
+
+            <div className="space-y-2.5 pt-1">
+              {completenessItems.map(([label, val]) => (
+                <div key={label} className="flex items-center gap-2.5 text-xs text-[var(--color-foreground)]">
+                  <span
+                    className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${
+                      val
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-700"
+                        : "bg-[var(--color-background)] border-[var(--color-border)]"
+                    }`}
+                  >
+                    {val ? <Check size={10} /> : null}
                   </span>
-                  {l}
+                  <span className={val ? "font-medium" : "text-[var(--color-muted-foreground)]"}>
+                    {label}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
-          <div className="panel profile-tip-panel">
-            <span className="tip-icon">
-              <ShieldCheck size={19} />
-            </span>
-            <h3>Cung cấp thông tin chính xác</h3>
-            <p>
-              Use accurate information and a current CV so employers can get a
-              clear picture of tương lai experience.
+
+          <div className="bg-sky-50 border border-sky-200 rounded-xl p-5 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-primary)]">
+              <ShieldCheck size={17} />
+              <span>Cung cấp thông tin chính xác</span>
+            </div>
+            <p className="text-xs text-[var(--color-foreground)] leading-relaxed">
+              Hãy dùng thông tin chính xác và bản CV mới nhất để nhà tuyển dụng đánh giá đúng năng lực và kinh nghiệm của bạn.
             </p>
           </div>
         </aside>
       </div>
-    </>
+    </div>
   );
 }
 function Field({
@@ -3492,8 +3805,10 @@ function Field({
   wide?: boolean;
 }) {
   return (
-    <label className={`field-label ${wide ? "field-wide" : ""}`}>
-      {label}
+    <label className={`block space-y-1.5 ${wide ? "sm:col-span-2" : ""}`}>
+      <span className="block text-xs font-bold text-[var(--color-foreground)]">
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -4025,121 +4340,133 @@ function ReviewPage() {
     .some((r) => r.jobId === app?.jobId && r.studentId === user?.id);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+
   if (!app || app.status !== "ACCEPTED" || !job || existing)
     return (
-      <>
+      <div className="space-y-6">
         <PageHeader
-          eyebrow="SHARE YOUR EXPERIENCE"
-          title="Leave a review"
-          subtitle="Reviews help students make more informed choices."
+          eyebrow="CHIA SẺ TRẢI NGHIỆM"
+          title="Viết đánh giá công ty"
+          subtitle="Đánh giá của bạn giúp các sinh viên khác có thêm góc nhìn thực tế."
         />
         <EmptyPage
           title={
             existing
-              ? "You have already reviewed this job"
-              : "Review not available"
+              ? "Bạn đã đánh giá công việc này rồi"
+              : "Chưa thể viết đánh giá"
           }
           text={
             existing
-              ? "Each eligible job can be reviewed once."
-              : "Only accepted applications are eligible for reviews in this demo."
+              ? "Mỗi vị trí việc làm chỉ được gửi đánh giá một lần."
+              : "Chỉ những đơn ứng tuyển đã được chấp nhận mới có thể viết đánh giá."
           }
           action={
-            <Link className="btn btn-primary" to="/student/applications">
-              Quay lại đơn ứng tuyển
+            <Link to="/student/applications">
+              <Button variant="primary" size="md">
+                Quay lại đơn ứng tuyển
+              </Button>
             </Link>
           }
         />
-      </>
+      </div>
     );
+
+  const ratingLabels = [
+    "",
+    "Chưa hài lòng",
+    "Cần cải thiện thêm",
+    "Tạm ổn",
+    "Rất tốt",
+    "Trải nghiệm tuyệt vời",
+  ];
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="SHARE YOUR EXPERIENCE"
-        title="How was the experience?"
-        subtitle={`Leave an honest review for ${job.company}.`}
+        eyebrow="CHIA SẺ TRẢI NGHIỆM"
+        title="Trải nghiệm làm việc thế nào?"
+        subtitle={`Để lại đánh giá khách quan cho ${job.company}.`}
       />
-      <section className="panel review-form-panel">
-        <div className="review-job">
+
+      <section className="max-w-2xl bg-white border border-[var(--color-border)] rounded-xl p-6 sm:p-8 space-y-6">
+        <div className="flex items-center gap-3.5 pb-5 border-b border-[var(--color-border)]">
           <CompanyMark name={job.company} />
-          <span>
-            <b>{job.title}</b>
-            <small>{job.company}</small>
-          </span>
+          <div>
+            <b className="text-sm font-bold text-[var(--color-foreground)] block">
+              {job.title}
+            </b>
+            <small className="text-xs text-[var(--color-muted-foreground)]">
+              {job.company}
+            </small>
+          </div>
         </div>
+
         <form
-          onSubmit={(e) => {
+          className="space-y-5"
+          onSubmit={async (e) => {
             e.preventDefault();
             try {
-              reviewService.create(job.id, user!, rating, comment);
-              toast("Thanks for sharing tương lai review!");
+              await reviewService.create(job.id, user!, rating, comment);
+              toast("Cảm ơn bạn đã chia sẻ đánh giá!");
               navigate(`/student/applications/${app.id}`);
             } catch (err) {
               toast(
-                err instanceof Error ? err.message : "Could not save review",
+                err instanceof Error ? err.message : "Không thể lưu đánh giá",
                 "error",
               );
             }
           }}
         >
-          <fieldset className="rating-field">
-            <legend>Đánh giá của bạn</legend>
-            <div className="rating-input">
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-bold text-[var(--color-foreground)]">
+              Mức độ hài lòng của bạn
+            </legend>
+            <div className="flex items-center gap-2">
               {Array.from({ length: 5 }, (_, i) => (
                 <button
                   type="button"
                   key={i}
-                  aria-label={`${i + 1} stars`}
+                  aria-label={`${i + 1} sao`}
                   onClick={() => setRating(i + 1)}
+                  className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-500 transition-colors duration-150 cursor-pointer"
                 >
-                  <Star size={31} fill={i < rating ? "currentColor" : "none"} />
+                  <Star size={28} fill={i < rating ? "currentColor" : "none"} />
                 </button>
               ))}
+              <span className="ml-2 text-xs font-semibold text-[var(--color-foreground)]">
+                {ratingLabels[rating]}
+              </span>
             </div>
-            <small className="muted">
-              {
-                [
-                  "",
-                  "Not great",
-                  "Could be better",
-                  "It was okay",
-                  "Really good",
-                  "Excellent experience",
-                ][rating]
-              }
-            </small>
           </fieldset>
-          <Field label="Your review">
+
+          <Field label="Nội dung đánh giá">
             <textarea
-              className="form-control"
+              className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
               required
               minLength={10}
               maxLength={600}
               rows={5}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Bạn đã học được gì? Môi trường làm việc thế nào?"
+              placeholder="Bạn đã học được gì? Môi trường làm việc và sự hỗ trợ của đội ngũ thế nào?"
             />
           </Field>
-          <div className="form-actions">
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => navigate(-1)}
-            >
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" size="md" onClick={() => navigate(-1)}>
               Hủy
-            </button>
-            <button className="btn btn-primary" type="submit">
-              <Star size={16} /> Gửi đánh giá
-            </button>
+            </Button>
+            <Button variant="primary" size="md" type="submit">
+              <Star size={15} /> Gửi đánh giá
+            </Button>
           </div>
         </form>
-        <p className="muted tiny">
-          Demo rule: only accepted applications can be reviewed, and each job
-          can be reviewed once per student.
+
+        <p className="text-[11px] text-[var(--color-muted-foreground)] pt-4 border-t border-[var(--color-border)]">
+          Lưu ý: Chỉ các đơn ứng tuyển đã được chấp nhận mới có thể đánh giá, và mỗi sinh viên chỉ gửi đánh giá một lần cho mỗi công việc.
         </p>
       </section>
-    </>
+    </div>
   );
 }
 function EmployerRoutes() {
@@ -4148,6 +4475,7 @@ function EmployerRoutes() {
       <Routes>
         <Route path="dashboard" element={<EmployerDashboard />} />
         <Route path="jobs" element={<EmployerJobs />} />
+        <Route path="profile" element={<EmployerProfile />} />
         <Route path="messages" element={<ChatPage />} />
         <Route path="jobs/new" element={<JobEditor />} />
         <Route path="jobs/:id/edit" element={<JobEditor />} />
@@ -4164,6 +4492,133 @@ function EmployerRoutes() {
     </Shell>
   );
 }
+function EmployerProfile() {
+  const { user, setUser } = useContext(AuthContext);
+  const toast = useToast();
+  const [form, setForm] = useState({
+    company: user?.company || user?.name || "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+    description: user?.description || "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    userService
+      .loadProfile()
+      .then((profile) => {
+        if (cancelled) return;
+        setUser(profile);
+        setForm({
+          company: profile.company || profile.name || "",
+          phone: profile.phone || "",
+          address: profile.address || "",
+          description: profile.description || "",
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const inputCls =
+    "w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150";
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="HỒ SƠ DOANH NGHIỆP"
+        title="Thông tin nhà tuyển dụng"
+        subtitle="Cập nhật thông tin công ty để ứng viên sinh viên dễ dàng tìm hiểu và liên hệ."
+      />
+
+      <section className="max-w-3xl bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-6">
+        <div className="flex items-center gap-4 pb-5 border-b border-[var(--color-border)]">
+          <CompanyMark name={form.company || "DN"} />
+          <div>
+            <h2 className="text-base font-bold text-[var(--color-foreground)]">
+              {form.company || "Chưa cập nhật tên công ty"}
+            </h2>
+            <span className="text-xs text-[var(--color-muted-foreground)]">
+              {user?.email}
+            </span>
+          </div>
+        </div>
+
+        <form
+          className="space-y-4"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!form.company.trim()) {
+              toast("Vui lòng nhập tên công ty", "error");
+              return;
+            }
+            setSaving(true);
+            try {
+              const saved = await userService.save({
+                ...user!,
+                name: form.company.trim(),
+                company: form.company.trim(),
+                phone: form.phone.trim(),
+                address: form.address.trim(),
+                description: form.description.trim(),
+              });
+              setUser(saved);
+              toast("Đã cập nhật hồ sơ công ty thành công!");
+            } catch (err) {
+              toast(err instanceof Error ? err.message : "Không thể lưu hồ sơ", "error");
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Tên công ty / Doanh nghiệp *">
+              <input
+                className={inputCls}
+                required
+                value={form.company}
+                onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+              />
+            </Field>
+            <Field label="Số điện thoại liên hệ">
+              <input
+                className={inputCls}
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="09..."
+              />
+            </Field>
+            <Field label="Địa chỉ văn phòng" wide>
+              <input
+                className={inputCls}
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                placeholder="Quận 1, TP. Hồ Chí Minh"
+              />
+            </Field>
+            <Field label="Giới thiệu về công ty" wide>
+              <textarea
+                className={inputCls}
+                rows={4}
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Mô tả lĩnh vực hoạt động, văn hóa và môi trường làm việc..."
+              />
+            </Field>
+          </div>
+          <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
+            <Button variant="primary" size="md" type="submit" disabled={saving}>
+              <Check size={15} /> {saving ? "Đang lưu..." : "Lưu thông tin công ty"}
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
 function EmployerDashboard() {
   const { user } = useContext(AuthContext);
 
@@ -4174,118 +4629,145 @@ function EmployerDashboard() {
     .all()
     .filter((a) => jobs.some((j) => j.id === a.jobId));
 
+  const weekBars = [
+    { d: "T2", n: 3 },
+    { d: "T3", n: 5 },
+    { d: "T4", n: 2 },
+    { d: "T5", n: 7 },
+    { d: "T6", n: 4 },
+    { d: "T7", n: 2 },
+    { d: "CN", n: 6 },
+  ];
+
+  const statusItems = [
+    {
+      label: "Đang chờ duyệt",
+      n: apps.filter((a) => a.status === "PENDING").length,
+      dot: "bg-amber-500",
+      bar: "bg-amber-500",
+    },
+    {
+      label: "Đã chấp nhận",
+      n: apps.filter((a) => a.status === "ACCEPTED").length,
+      dot: "bg-emerald-500",
+      bar: "bg-emerald-500",
+    },
+    {
+      label: "Đã từ chối",
+      n: apps.filter((a) => a.status === "REJECTED").length,
+      dot: "bg-rose-500",
+      bar: "bg-rose-500",
+    },
+  ];
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="RECRUITMENT OVERVIEW"
-        title={`Welcome back, ${user?.name.split(" ")[0] || "there"}`}
-        subtitle="Here's tương lai hiring activity at a glance."
+        eyebrow="TỔNG QUAN TUYỂN DỤNG"
+        title={`Xin chào, ${user?.name.split(" ")[0] || "Nhà tuyển dụng"}`}
+        subtitle="Theo dõi hiệu quả tuyển dụng và danh sách ứng viên mới nhất của bạn."
         action={
-          <Link className="btn btn-primary" to="/employer/jobs/new">
-            <Plus size={17} /> Đăng tin tuyển dụng
+          <Link to="/employer/jobs/new">
+            <Button variant="primary" size="md">
+              <Plus size={16} /> Đăng tin tuyển dụng
+            </Button>
           </Link>
         }
       />
-      <div className="metrics-grid four">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Metric
-          label="Total job listings"
+          label="Tổng tin tuyển dụng"
           value={jobs.length}
-          icon={<BriefcaseBusiness />}
+          icon={<BriefcaseBusiness size={18} />}
+          variant="blue"
         />
         <Metric
-          label="Open positions"
+          label="Vị trí đang mở"
           value={jobs.filter((j) => j.status === "OPEN").length}
-          icon={<Globe />}
+          icon={<Globe size={18} />}
           variant="green"
         />
         <Metric
-          label="Closed positions"
+          label="Vị trí đã đóng"
           value={jobs.filter((j) => j.status === "CLOSED").length}
-          icon={<Ban />}
+          icon={<Ban size={18} />}
           variant="purple"
         />
         <Metric
-          label="Total applicants"
+          label="Tổng ứng viên"
           value={apps.length}
-          icon={<Users />}
+          icon={<Users size={18} />}
           variant="amber"
         />
       </div>
-      <div className="dashboard-two-col employer-dashboard-columns">
-        <section className="panel">
-          <div className="panel-heading">
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
             <div>
-              <h2>Hoạt động ứng tuyển</h2>
-              <p>Đơn nhận được trong tuần</p>
+              <h2 className="text-base font-bold text-[var(--color-foreground)]">
+                Hoạt động ứng tuyển
+              </h2>
+              <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+                Lượng hồ sơ tiếp nhận trong tuần
+              </p>
             </div>
-            <span className="chart-badge">
-              <ChartNoAxesCombined size={16} /> Tổng quan
-            </span>
+            <Badge variant="info">
+              <ChartNoAxesCombined size={13} /> Tổng quan
+            </Badge>
           </div>
-          <div className="chart-wrap">
-            <div className="chart-bars">
-              {[
-                { d: "Mon", n: 3 },
-                { d: "Tue", n: 5 },
-                { d: "Wed", n: 2 },
-                { d: "Thu", n: 7 },
-                { d: "Fri", n: 4 },
-                { d: "Sat", n: 2 },
-                { d: "Sun", n: 6 },
-              ].map((v) => (
-                <div className="chart-column" key={v.d}>
-                  <span className="bar-value">{v.n}</span>
-                  <span
-                    className="chart-bar"
-                    style={{ height: `${v.n * 12 + 15}px` }}
+
+          <div className="pt-2">
+            <div className="grid grid-cols-7 gap-2 items-end h-36 px-2">
+              {weekBars.map((v) => (
+                <div className="flex flex-col items-center gap-1.5" key={v.d}>
+                  <span className="text-[11px] font-bold text-[var(--color-muted-foreground)]">
+                    {v.n}
+                  </span>
+                  <div
+                    className="w-full max-w-[28px] rounded-t-md bg-[var(--color-primary)]/85 hover:bg-[var(--color-primary)] transition-colors duration-150"
+                    style={{ height: `${v.n * 13 + 12}px` }}
                   />
-                  <small>{v.d}</small>
+                  <small className="text-[11px] font-medium text-[var(--color-muted-foreground)]">
+                    {v.d}
+                  </small>
                 </div>
               ))}
             </div>
-            <div className="chart-foot">
-              <span>
-                <i className="chart-legend" />
+            <div className="mt-4 pt-3 border-t border-[var(--color-border)] flex items-center justify-between text-xs">
+              <span className="inline-flex items-center gap-2 text-[var(--color-muted-foreground)]">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[var(--color-primary)] inline-block" />
                 Đơn ứng tuyển đã nhận
               </span>
-              <b>{apps.length} total</b>
+              <b className="text-[var(--color-foreground)]">Tổng {apps.length} hồ sơ</b>
             </div>
           </div>
         </section>
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Trạng thái ứng tuyển</h2>
-              <p>Trên các tin tuyển dụng của bạn</p>
-            </div>
+
+        <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 flex flex-col justify-between space-y-5">
+          <div className="pb-3 border-b border-[var(--color-border)]">
+            <h2 className="text-base font-bold text-[var(--color-foreground)]">
+              Trạng thái ứng tuyển
+            </h2>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+              Phân bổ hồ sơ trên các tin tuyển dụng của bạn
+            </p>
           </div>
-          <div className="status-breakdown">
-            {[
-              {
-                label: "Pending",
-                n: apps.filter((a) => a.status === "PENDING").length,
-                c: "pending",
-              },
-              {
-                label: "Accepted",
-                n: apps.filter((a) => a.status === "ACCEPTED").length,
-                c: "accepted",
-              },
-              {
-                label: "Rejected",
-                n: apps.filter((a) => a.status === "REJECTED").length,
-                c: "rejected",
-              },
-            ].map((v) => (
-              <div className="breakdown-row" key={v.label}>
-                <span>
-                  <i className={`legend-dot ${v.c}`} />
-                  {v.label}
-                </span>
-                <b>{v.n}</b>
-                <div className="breakdown-track">
-                  <span
-                    className={v.c}
+
+          <div className="space-y-4">
+            {statusItems.map((v) => (
+              <div className="space-y-1.5" key={v.label}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="inline-flex items-center gap-2 font-medium text-[var(--color-foreground)]">
+                    <span className={`w-2 h-2 rounded-full ${v.dot}`} />
+                    {v.label}
+                  </span>
+                  <b className="font-bold text-[var(--color-foreground)]">{v.n}</b>
+                </div>
+                <div className="w-full h-2 rounded-full bg-[var(--color-muted)] overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${v.bar}`}
                     style={{
                       width: `${apps.length ? (v.n / apps.length) * 100 : 0}%`,
                     }}
@@ -4294,74 +4776,101 @@ function EmployerDashboard() {
               </div>
             ))}
           </div>
-          <Link className="btn btn-outline btn-block" to="/employer/jobs">
-            Quản lý tin tuyển dụng <ArrowRight size={15} />
+
+          <Link to="/employer/jobs" className="block pt-2">
+            <Button variant="outline" size="md" fullWidth>
+              Quản lý tin tuyển dụng <ArrowRight size={15} />
+            </Button>
           </Link>
         </section>
       </div>
-      <section className="panel recommended-panel">
-        <div className="panel-heading">
+
+      <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
           <div>
-            <h2>Tin tuyển dụng của bạn</h2>
-            <p>Quản lý vị trí và theo dõi ứng viên</p>
+            <h2 className="text-base font-bold text-[var(--color-foreground)]">
+              Tin tuyển dụng của bạn
+            </h2>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+              Quản lý vị trí và theo dõi ứng viên
+            </p>
           </div>
-          <Link className="text-link" to="/employer/jobs">
-            Xem tất cả <ArrowRight size={15} />
+          <Link
+            className="text-xs font-semibold text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
+            to="/employer/jobs"
+          >
+            Xem tất cả <ArrowRight size={14} />
           </Link>
         </div>
+
         {jobs.length ? (
-          <div className="employer-job-list">
+          <div className="divide-y divide-[var(--color-border)]">
             {jobs.slice(0, 4).map((j) => (
-              <div className="employer-job-row" key={j.id}>
-                <CompanyMark name={j.company} />
-                <div className="employer-job-main">
-                  <b>{j.title}</b>
-                  <span>
-                    {j.applicants} applicants · Đăng ngày {date(j.postedAt)}
-                  </span>
+              <div
+                className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                key={j.id}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <CompanyMark name={j.company} />
+                  <div className="min-w-0">
+                    <b className="text-xs font-bold text-[var(--color-foreground)] block truncate">
+                      {j.title}
+                    </b>
+                    <span className="text-[11px] text-[var(--color-muted-foreground)] block mt-0.5">
+                      {j.applicants} ứng viên · Đăng ngày {date(j.postedAt)}
+                    </span>
+                  </div>
                 </div>
-                <span className={`status-pill ${statusClass(j.status)}`}>
-                  {j.status === "OPEN" ? "Open" : "Closed"}
-                </span>
-                <Link
-                  className="btn btn-outline btn-sm"
-                  to={`/employer/jobs/${j.id}/applications`}
-                >
-                  Xem ứng viên
-                </Link>
+                <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+                  <Badge variant={j.status === "OPEN" ? "success" : "neutral"}>
+                    {j.status === "OPEN" ? "Đang mở" : "Đã đóng"}
+                  </Badge>
+                  <Link to={`/employer/jobs/${j.id}/applications`}>
+                    <Button variant="outline" size="sm">
+                      Xem ứng viên
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
         ) : (
           <EmptyPage
-            title="No listings yet"
-            text="Post tương lai first job to start meeting candidates."
+            title="Chưa có tin tuyển dụng"
+            text="Hãy đăng tin tuyển dụng đầu tiên để bắt đầu tiếp cận ứng viên sinh viên."
             action={
-              <Link to="/employer/jobs/new" className="btn btn-primary">
-                Tạo tin tuyển dụng
+              <Link to="/employer/jobs/new">
+                <Button variant="primary" size="md">
+                  Tạo tin tuyển dụng
+                </Button>
               </Link>
             }
           />
         )}
       </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Đơn ứng tuyển gần đây</h2>
-            <p>Ứng viên mới nhất cho các vị trí của bạn</p>
-          </div>
+
+      <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
+        <div className="pb-3 border-b border-[var(--color-border)]">
+          <h2 className="text-base font-bold text-[var(--color-foreground)]">
+            Đơn ứng tuyển gần đây
+          </h2>
+          <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+            Ứng viên mới nhất cho các vị trí của bạn
+          </p>
         </div>
         {apps.length ? (
-          <div className="activity-list">
+          <div className="divide-y divide-[var(--color-border)]">
             {apps.slice(0, 4).map((a) => (
               <ApplicationRow key={a.id} app={a} />
             ))}
           </div>
         ) : (
-          <p className="muted">Đơn ứng tuyển mới sẽ hiển thị tại đây.</p>
+          <p className="text-xs text-[var(--color-muted-foreground)] py-4 text-center">
+            Đơn ứng tuyển mới sẽ hiển thị tại đây.
+          </p>
         )}
       </section>
-    </>
+    </div>
   );
 }
 function EmployerJobs() {
@@ -4370,8 +4879,8 @@ function EmployerJobs() {
   const [status, setStatus] = useState("ALL");
   const [sort, setSort] = useState("newest");
   const [confirm, setConfirm] = useState<Job | null>(null);
-  const jobs = jobService
-    .all()
+  const allJobs = jobService.all();
+  const jobs = allJobs
     .filter(
       (j) =>
         (status === "ALL" || j.status === status) &&
@@ -4382,100 +4891,138 @@ function EmployerJobs() {
         ? b.salaryMax - a.salaryMax
         : b.postedAt.localeCompare(a.postedAt),
     );
+  const totalApplicants = applicationService
+    .all()
+    .filter((a) => allJobs.some((j) => j.id === a.jobId)).length;
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="YOUR OPEN ROLES"
-        title="Job listings"
-        subtitle="Create, update, and manage the opportunities you share."
+        eyebrow="QUẢN LÝ VỊ TRÍ"
+        title="Tin tuyển dụng"
+        subtitle="Tạo mới, chỉnh sửa và theo dõi trạng thái duyệt các tin tuyển dụng."
         action={
-          <Link to="/employer/jobs/new" className="btn btn-primary">
-            <Plus size={16} /> Tạo tin tuyển dụng
+          <Link to="/employer/jobs/new">
+            <Button variant="primary" size="md">
+              <Plus size={16} /> Tạo tin tuyển dụng
+            </Button>
           </Link>
         }
       />
-      <div className="application-summary">
-        <div>
-          <span>Tổng tin tuyển dụng</span>
-          <b>{jobService.all().length}</b>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Tổng tin tuyển dụng
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-foreground)] mt-1 block">
+            {allJobs.length}
+          </b>
         </div>
-        <div>
-          <span>Đang mở</span>
-          <b>{jobService.all().filter((j) => j.status === "OPEN").length}</b>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đang mở
+          </span>
+          <b className="text-2xl font-extrabold text-emerald-700 mt-1 block">
+            {allJobs.filter((j) => j.status === "OPEN").length}
+          </b>
         </div>
-        <div>
-          <span>Đã đóng</span>
-          <b>{jobService.all().filter((j) => j.status === "CLOSED").length}</b>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã đóng
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-muted-foreground)] mt-1 block">
+            {allJobs.filter((j) => j.status === "CLOSED").length}
+          </b>
         </div>
-        <div>
-          <span>Ứng viên</span>
-          <b>
-            {
-              applicationService
-                .all()
-                .filter((a) => jobService.all().some((j) => j.id === a.jobId))
-                .length
-            }
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Ứng viên
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-primary)] mt-1 block">
+            {totalApplicants}
           </b>
         </div>
       </div>
-      <section className="panel">
-        <div className="table-toolbar">
-          <label className="table-search">
-            <Search size={16} />
+
+      <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-[var(--color-border)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--color-background)]/40">
+          <div className="relative flex-1 max-w-sm">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]"
+            />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tìm kiếm tin tuyển dụng..."
+              className="w-full bg-white border border-[var(--color-border)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
             />
-          </label>
-          <label className="sort-select">
-            <ListFilter size={15} />
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="OPEN">Đang mở</option>
-              <option value="CLOSED">Đã đóng</option>
-            </select>
-          </label>
-          <label className="sort-select">
-            <ArrowDownUp size={15} />
-            <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="newest">Mới nhất trước</option>
-              <option value="salary">Lương cao nhất</option>
-            </select>
-          </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
+              <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="bg-transparent outline-none cursor-pointer font-medium"
+              >
+                <option value="ALL">Tất cả trạng thái</option>
+                <option value="OPEN">Đang mở</option>
+                <option value="CLOSED">Đã đóng</option>
+              </select>
+            </label>
+
+            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
+              <ArrowDownUp size={14} className="text-[var(--color-muted-foreground)]" />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="bg-transparent outline-none cursor-pointer font-medium"
+              >
+                <option value="newest">Mới nhất trước</option>
+                <option value="salary">Lương cao nhất</option>
+              </select>
+            </label>
+          </div>
         </div>
+
         {jobs.length ? (
-          <div className="table-scroll">
-            <table className="data-table">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr>
-                  <th>Tin tuyển dụng</th>
-                  <th>Ngày đăng</th>
-                  <th>Ứng viên</th>
-                  <th>Trạng thái</th>
-                  <th>Kiểm duyệt</th>
-                  <th>Thao tác</th>
+                <tr className="bg-[var(--color-background)]/60 border-b border-[var(--color-border)] text-[var(--color-muted-foreground)] uppercase text-[11px] font-bold tracking-wider">
+                  <th className="py-3 px-4">Tin tuyển dụng</th>
+                  <th className="py-3 px-4">Ngày đăng</th>
+                  <th className="py-3 px-4">Ứng viên</th>
+                  <th className="py-3 px-4">Trạng thái</th>
+                  <th className="py-3 px-4">Kiểm duyệt</th>
+                  <th className="py-3 px-4 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[var(--color-border)]">
                 {jobs.map((j) => (
-                  <tr key={j.id}>
-                    <td>
-                      <div className="table-job">
+                  <tr key={j.id} className="hover:bg-[var(--color-background)]/40 transition-colors duration-150">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
                         <CompanyMark name={j.company} />
-                        <span>
-                          <b>{j.title}</b>
-                          <small>
-                            {j.category} · {j.type.replace("_", " ")}
+                        <div>
+                          <b className="font-bold text-[var(--color-foreground)] block">
+                            {j.title}
+                          </b>
+                          <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                            {j.category} · {jobTypeVi(j.type)}
                           </small>
-                        </span>
+                        </div>
                       </div>
                     </td>
-                    <td>{date(j.postedAt)}</td>
-                    <td>
+                    <td className="py-3.5 px-4 text-[var(--color-muted-foreground)]">
+                      {date(j.postedAt)}
+                    </td>
+                    <td className="py-3.5 px-4">
                       <Link
-                        className="table-link"
+                        className="inline-flex items-center gap-1 font-bold text-[var(--color-primary)] hover:underline"
                         to={`/employer/jobs/${j.id}/applications`}
                       >
                         {
@@ -4483,66 +5030,72 @@ function EmployerJobs() {
                             .all()
                             .filter((a) => a.jobId === j.id).length
                         }{" "}
-                        applicants <ArrowRight size={12} />
+                        ứng viên <ArrowRight size={12} />
                       </Link>
                     </td>
-                    <td>
-                      <span className={`status-pill ${statusClass(j.status)}`}>
-                        {j.status}
-                      </span>
+                    <td className="py-3.5 px-4">
+                      <Badge variant={j.status === "OPEN" ? "success" : "neutral"}>
+                        {j.status === "OPEN" ? "Đang mở" : "Đã đóng"}
+                      </Badge>
                     </td>
-                    <td>
-                      <span
-                        className={`status-pill ${statusClass(j.moderation)}`}
+                    <td className="py-3.5 px-4">
+                      <Badge
+                        variant={
+                          j.moderation === "APPROVED"
+                            ? "success"
+                            : j.moderation === "REJECTED"
+                              ? "danger"
+                              : "warning"
+                        }
                       >
-                        {j.moderation}
-                      </span>
+                        {j.moderation === "APPROVED"
+                          ? "Đã duyệt"
+                          : j.moderation === "REJECTED"
+                            ? "Bị từ chối"
+                            : "Chờ duyệt"}
+                      </Badge>
                     </td>
-                    <td>
-                      <div className="table-actions">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center justify-end gap-1.5">
                         <Link
-                          className="table-action"
-                          title="Edit listing"
+                          className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
+                          title="Chỉnh sửa tin"
                           to={`/employer/jobs/${j.id}/edit`}
                         >
-                          <Pencil size={15} />
+                          <Pencil size={14} />
                         </Link>
                         <button
-                          className="table-action"
-                          title={
-                            j.status === "OPEN"
-                              ? "Close listing"
-                              : "Reopen listing"
-                          }
-                          onClick={() => {
-                            jobService.save({
-                              ...j,
-                              status: j.status === "OPEN" ? "CLOSED" : "OPEN",
-                            });
-                            toast(
-                              j.status === "OPEN"
-                                ? "Listing closed"
-                                : "Listing reopened",
-                            );
+                          type="button"
+                          className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
+                          title={j.status === "OPEN" ? "Đóng tin tuyển dụng" : "Mở lại tin"}
+                          onClick={async () => {
+                            try {
+                              await jobService.save({
+                                ...j,
+                                status: j.status === "OPEN" ? "CLOSED" : "OPEN",
+                              });
+                              toast(
+                                j.status === "OPEN"
+                                  ? "Đã đóng tin tuyển dụng"
+                                  : "Đã mở lại tin tuyển dụng",
+                              );
+                            } catch (err) {
+                              toast(
+                                err instanceof Error ? err.message : "Không thể cập nhật trạng thái",
+                                "error",
+                              );
+                            }
                           }}
                         >
-                          {j.status === "OPEN" ? (
-                            <Ban size={15} />
-                          ) : (
-                            <RefreshCw size={15} />
-                          )}
+                          {j.status === "OPEN" ? <Ban size={14} /> : <RefreshCw size={14} />}
                         </button>
                         <button
-                          className="table-action danger-action"
-                          title="Deletion is not available yet"
-                          onClick={() =>
-                            toast(
-                              "The backend does not support deleting job listings yet.",
-                              "info",
-                            )
-                          }
+                          type="button"
+                          className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
+                          title="Xóa tin tuyển dụng"
+                          onClick={() => setConfirm(j)}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -4552,48 +5105,57 @@ function EmployerJobs() {
             </table>
           </div>
         ) : (
-          <EmptyPage
-            title="No listings found"
-            text={
-              q
-                ? "Try another search term."
-                : "Create tương lai first listing and start building tương lai team."
-            }
-            action={
-              <Link className="btn btn-primary" to="/employer/jobs/new">
-                <Plus size={16} /> Tạo tin tuyển dụng
-              </Link>
-            }
-          />
+          <div className="p-8">
+            <EmptyPage
+              title="Không tìm thấy tin tuyển dụng"
+              text={
+                q
+                  ? "Hãy thử tìm kiếm với từ khóa khác."
+                  : "Hãy tạo tin tuyển dụng đầu tiên để bắt đầu tìm kiếm ứng viên."
+              }
+              action={
+                <Link to="/employer/jobs/new">
+                  <Button variant="primary" size="md">
+                    <Plus size={16} /> Tạo tin tuyển dụng
+                  </Button>
+                </Link>
+              }
+            />
+          </div>
         )}
       </section>
+
       {confirm && (
-        <Modal title="Delete this listing?" onClose={() => setConfirm(null)}>
-          <p>
-            Bạn sắp xóa <b>{confirm.title}</b>. This action removes
-            the listing from the demo workspace.
+        <Modal title="Xóa tin tuyển dụng?" onClose={() => setConfirm(null)}>
+          <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+            Bạn sắp xóa tin <b className="text-[var(--color-foreground)]">{confirm.title}</b>. Thao tác này sẽ gỡ tin khỏi danh sách hiển thị.
           </p>
-          <div className="modal-actions">
-            <button
-              className="btn btn-outline"
-              onClick={() => setConfirm(null)}
-            >
-              Giữ tin tuyển dụng
-            </button>
-            <button
-              className="btn btn-danger"
-              onClick={() => {
-                jobService.remove(confirm.id);
-                setConfirm(null);
-                toast("Listing deleted");
+          <div className="flex items-center justify-end gap-2.5 pt-4 mt-4 border-t border-[var(--color-border)]">
+            <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
+              Giữ lại
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await jobService.remove(confirm.id);
+                  setConfirm(null);
+                  toast("Đã xóa tin tuyển dụng");
+                } catch (err) {
+                  toast(
+                    err instanceof Error ? err.message : "Không thể xóa tin tuyển dụng",
+                    "error",
+                  );
+                }
               }}
             >
               Xóa tin tuyển dụng
-            </button>
+            </Button>
           </div>
         </Modal>
       )}
-    </>
+    </div>
   );
 }
 function JobEditor() {
@@ -4619,32 +5181,37 @@ function JobEditor() {
     status: existing?.status || "OPEN",
   });
   const [errors, setErrors] = useState<string[]>([]);
+
   if (editing && (!existing || existing.employerUserId !== user?.id))
     return (
       <EmptyPage
-        title="Listing not found"
-        text="You can only edit listings owned by tương lai account."
+        title="Không tìm thấy tin tuyển dụng"
+        text="Bạn chỉ có thể chỉnh sửa các tin tuyển dụng thuộc tài khoản của mình."
         action={
-          <Link to="/employer/jobs" className="btn btn-primary">
-            Quay lại danh sách
+          <Link to="/employer/jobs">
+            <Button variant="primary" size="md">
+              Quay lại danh sách
+            </Button>
           </Link>
         }
       />
     );
+
   const change = (k: keyof typeof form, v: string) =>
     setForm((f) => ({ ...f, [k]: v }) as typeof f);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const errs: string[] = [];
     if (form.title.trim().length < 4)
-      errs.push("Add a job title with at least 4 characters.");
-    if (!form.description.trim()) errs.push("Job description is required.");
+      errs.push("Tiêu đề công việc phải có ít nhất 4 ký tự.");
+    if (!form.description.trim()) errs.push("Vui lòng nhập mô tả công việc.");
     if (
       Number(form.salaryMin) < 0 ||
       Number(form.salaryMax) < Number(form.salaryMin)
     )
-      errs.push("Check that the salary range is valid.");
-    if (!form.deadline) errs.push("Choose an application deadline.");
+      errs.push("Khoảng mức lương không hợp lệ.");
+    if (!form.deadline) errs.push("Vui lòng chọn hạn chót ứng tuyển.");
     if (errs.length) {
       setErrors(errs);
       return;
@@ -4652,7 +5219,7 @@ function JobEditor() {
     const job: Job = {
       id: existing?.id || `j-${Date.now()}`,
       title: form.title.trim(),
-      company: user?.company || user?.name || "Demo Company",
+      company: user?.company || user?.name || "Công ty đối tác",
       employerId: user!.id,
       category: form.category,
       type: form.type as Job["type"],
@@ -4683,48 +5250,55 @@ function JobEditor() {
       await jobService.save(job);
       toast(
         editing
-          ? "Listing updated successfully"
-          : "Listing submitted for admin moderation",
+          ? "Cập nhật tin tuyển dụng thành công"
+          : "Đã gửi tin tuyển dụng, đang chờ quản trị viên duyệt",
       );
       navigate("/employer/jobs");
     } catch (err) {
       toast(
-        err instanceof Error ? err.message : "Could not save job listing",
+        err instanceof Error ? err.message : "Không thể lưu tin tuyển dụng",
         "error",
       );
     }
   };
+
+  const fieldCls =
+    "w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150";
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow={editing ? "UPDATE A ROLE" : "GROW YOUR TEAM"}
-        title={editing ? "Edit job listing" : "Create a job listing"}
-        subtitle="Clear details help the right candidates picture themselves in the role."
+        eyebrow={editing ? "CẬP NHẬT VỊ TRÍ" : "MỞ RỘNG ĐỘI NGŨ"}
+        title={editing ? "Chỉnh sửa tin tuyển dụng" : "Tạo tin tuyển dụng mới"}
+        subtitle="Thông tin rõ ràng, minh bạch giúp thu hút đúng ứng viên sinh viên phù hợp."
         action={
-          <button
-            className="btn btn-outline"
-            onClick={() => navigate("/employer/jobs")}
-          >
+          <Button variant="outline" size="md" onClick={() => navigate("/employer/jobs")}>
             <ArrowLeft size={15} /> Quay lại danh sách
-          </button>
+          </Button>
         }
       />
-      <form onSubmit={submit} className="editor-layout">
-        <div className="editor-main">
-          <section className="panel editor-panel">
-            <div className="form-section-head">
-              <span className="section-icon">
+
+      <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2 space-y-6">
+          <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-[var(--color-border)]">
+              <span className="w-9 h-9 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center shrink-0">
                 <BriefcaseBusiness size={18} />
               </span>
               <div>
-                <h3>Chi tiết công việc</h3>
-                <p>Nhập thông tin quan trọng để ứng viên dễ dàng tìm hiểu.</p>
+                <h3 className="text-sm font-bold text-[var(--color-foreground)]">
+                  Thông tin cơ bản
+                </h3>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  Nhập các thông tin quan trọng để ứng viên dễ dàng tìm kiếm.
+                </p>
               </div>
             </div>
-            <div className="form-grid">
-              <Field label="Job title *" wide>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Tiêu đề công việc *" wide>
                 <input
-                  className="form-control"
+                  className={fieldCls}
                   required
                   minLength={4}
                   value={form.title}
@@ -4732,9 +5306,9 @@ function JobEditor() {
                   placeholder="Ví dụ: Thực tập sinh lập trình Frontend"
                 />
               </Field>
-              <Field label="Category *">
+              <Field label="Ngành nghề *">
                 <select
-                  className="form-control"
+                  className={fieldCls}
                   value={form.category}
                   onChange={(e) => change("category", e.target.value)}
                 >
@@ -4748,13 +5322,13 @@ function JobEditor() {
                     "Customer Service",
                     "Finance",
                   ].map((c) => (
-                    <option key={c}>{c}</option>
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </Field>
-              <Field label="Job type *">
+              <Field label="Hình thức làm việc *">
                 <select
-                  className="form-control"
+                  className={fieldCls}
                   value={form.type}
                   onChange={(e) => change("type", e.target.value)}
                 >
@@ -4763,9 +5337,9 @@ function JobEditor() {
                   <option value="FREELANCE">Làm tự do</option>
                 </select>
               </Field>
-              <Field label="Minimum salary (VND) *">
+              <Field label="Lương tối thiểu (VNĐ) *">
                 <input
-                  className="form-control"
+                  className={fieldCls}
                   type="number"
                   min="0"
                   required
@@ -4773,9 +5347,9 @@ function JobEditor() {
                   onChange={(e) => change("salaryMin", e.target.value)}
                 />
               </Field>
-              <Field label="Maximum salary (VND) *">
+              <Field label="Lương tối đa (VNĐ) *">
                 <input
-                  className="form-control"
+                  className={fieldCls}
                   type="number"
                   min="0"
                   required
@@ -4783,38 +5357,38 @@ function JobEditor() {
                   onChange={(e) => change("salaryMax", e.target.value)}
                 />
               </Field>
-              <Field label="Location *">
+              <Field label="Địa điểm làm việc *">
                 <input
-                  className="form-control"
+                  className={fieldCls}
                   required
                   value={form.location}
                   onChange={(e) => change("location", e.target.value)}
-                  placeholder="Thành phố hoặc làm từ xa"
+                  placeholder="TP. Hồ Chí Minh hoặc Làm từ xa"
                 />
               </Field>
-              <Field label="Working arrangement">
+              <Field label="Phương thức làm việc">
                 <select
-                  className="form-control"
+                  className={fieldCls}
                   value={form.arrangement}
                   onChange={(e) => change("arrangement", e.target.value)}
                 >
-                  <option>Tại văn phòng</option>
-                  <option>Kết hợp</option>
-                  <option>Làm từ xa</option>
+                  <option value="On-site">Tại văn phòng</option>
+                  <option value="Hybrid">Kết hợp</option>
+                  <option value="Remote">Làm từ xa</option>
                 </select>
               </Field>
-              <Field label="Application deadline *">
+              <Field label="Hạn chót ứng tuyển *">
                 <input
-                  className="form-control"
+                  className={fieldCls}
                   type="date"
                   required
                   value={form.deadline}
                   onChange={(e) => change("deadline", e.target.value)}
                 />
               </Field>
-              <Field label="Listing status">
+              <Field label="Trạng thái tin">
                 <select
-                  className="form-control"
+                  className={fieldCls}
                   value={form.status}
                   onChange={(e) => change("status", e.target.value)}
                 >
@@ -4824,55 +5398,54 @@ function JobEditor() {
               </Field>
             </div>
           </section>
-          <section className="panel editor-panel">
-            <div className="form-section-head">
-              <span className="section-icon">
+
+          <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-[var(--color-border)]">
+              <span className="w-9 h-9 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center shrink-0">
                 <FileText size={18} />
               </span>
               <div>
-                <h3>Mô tả vị trí</h3>
-                <p>
-                  Help candidates understand the work and how they'll
-                  contribute.
+                <h3 className="text-sm font-bold text-[var(--color-foreground)]">
+                  Mô tả chi tiết vị trí
+                </h3>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  Giúp sinh viên hiểu rõ công việc và cách thức đóng góp cho đội ngũ.
                 </p>
               </div>
             </div>
-            <div className="editor-fields">
-              <Field label="About this role *">
+
+            <div className="space-y-4">
+              <Field label="Giới thiệu vị trí *" wide>
                 <textarea
-                  className="form-control"
+                  className={fieldCls}
                   rows={5}
                   required
                   value={form.description}
                   onChange={(e) => change("description", e.target.value)}
-                  placeholder="Mô tả công việc, đội nhóm và những điểm hấp dẫn của vị trí..."
+                  placeholder="Mô tả công việc, môi trường làm việc và quyền lợi của vị trí..."
                 />
               </Field>
-              <Field label="Responsibilities (one per line)">
+              <Field label="Trách nhiệm công việc (mỗi dòng 1 ý)" wide>
                 <textarea
-                  className="form-control"
+                  className={fieldCls}
                   rows={4}
                   value={form.responsibilities}
                   onChange={(e) => change("responsibilities", e.target.value)}
-                  placeholder={
-                    "Build and improve product features\nCollaborate with teammates\nShare progress and learnings"
-                  }
+                  placeholder={"Xây dựng và cải thiện giao diện sản phẩm\nPhối hợp với đội ngũ kỹ thuật và thiết kế"}
                 />
               </Field>
-              <Field label="Requirements (one per line)">
+              <Field label="Yêu cầu ứng viên (mỗi dòng 1 ý)" wide>
                 <textarea
-                  className="form-control"
+                  className={fieldCls}
                   rows={4}
                   value={form.requirements}
                   onChange={(e) => change("requirements", e.target.value)}
-                  placeholder={
-                    "Currently enrolled in university\nStrong communication skills\nEager to learn"
-                  }
+                  placeholder={"Đang là sinh viên năm 3, 4 ngành CNTT\nCó tinh thần học hỏi và giao tiếp tốt"}
                 />
               </Field>
-              <Field label="Required skills (comma separated)">
+              <Field label="Kỹ năng yêu cầu (ngăn cách bằng dấu phẩy)" wide>
                 <input
-                  className="form-control"
+                  className={fieldCls}
                   value={form.skills}
                   onChange={(e) => change("skills", e.target.value)}
                   placeholder="React, TypeScript, CSS"
@@ -4880,52 +5453,58 @@ function JobEditor() {
               </Field>
             </div>
           </section>
+
           {errors.length > 0 && (
-            <div className="validation-summary">
-              <b>Vui lòng kiểm tra thông tin:</b>
-              {errors.map((e) => (
-                <span key={e}>• {e}</span>
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-1">
+              <b className="block font-bold">Vui lòng kiểm tra lại thông tin:</b>
+              {errors.map((err) => (
+                <span className="block" key={err}>• {err}</span>
               ))}
             </div>
           )}
-          <div className="editor-actions">
-            <button
+
+          <div className="flex items-center justify-end gap-3">
+            <Button
               type="button"
-              className="btn btn-outline"
+              variant="outline"
+              size="md"
               onClick={() => navigate("/employer/jobs")}
             >
               Hủy
-            </button>
-            <button type="submit" className="btn btn-primary">
+            </Button>
+            <Button type="submit" variant="primary" size="md">
               <Check size={16} />
-              {editing ? "Lưu thay đổi" : "Tạo tin tuyển dụng"}
-            </button>
+              {editing ? "Lưu thay đổi" : "Đăng tin tuyển dụng"}
+            </Button>
           </div>
         </div>
-        <aside className="editor-aside">
-          <div className="panel">
-            <span className="tip-icon">
-              <Sparkles size={19} />
-            </span>
-            <h3>Mẹo đăng tin hiệu quả</h3>
-            <ul className="editor-tips">
-              <li>Đặt tiêu đề công việc rõ ràng, cụ thể.</li>
-              <li>Minh bạch về mức lương và hình thức làm việc.</li>
-              <li>Nêu rõ nhiệm vụ và kỹ năng cần thiết.</li>
-              <li>Đặt hạn ứng tuyển phù hợp.</li>
+
+        <aside className="lg:col-span-1 space-y-6">
+          <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-primary)]">
+              <Sparkles size={17} />
+              <span>Mẹo đăng tin hiệu quả</span>
+            </div>
+            <ul className="space-y-2 text-xs text-[var(--color-muted-foreground)] list-disc pl-4 leading-relaxed">
+              <li>Đặt tiêu đề công việc rõ ràng, đúng trọng tâm vị trí.</li>
+              <li>Minh bạch về mức lương và thời gian làm việc linh hoạt.</li>
+              <li>Nêu rõ nhiệm vụ và kỹ năng cần thiết cho sinh viên.</li>
+              <li>Đặt hạn nộp hồ sơ phù hợp.</li>
             </ul>
           </div>
-          <div className="panel moderation-note">
-            <ShieldCheck size={20} />
-            <b>Kiểm duyệt minh họa</b>
-            <p>
-              New listings start as pending and must be approved by the demo
-              administrator before they appear publicly.
+
+          <div className="bg-sky-50 border border-sky-200 rounded-xl p-5 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-primary)]">
+              <ShieldCheck size={17} />
+              <span>Quy trình kiểm duyệt</span>
+            </div>
+            <p className="text-xs text-[var(--color-foreground)] leading-relaxed">
+              Tin tuyển dụng mới tạo sẽ ở trạng thái chờ duyệt và được quản trị viên xác nhận trước khi hiển thị công khai tới sinh viên.
             </p>
           </div>
         </aside>
       </form>
-    </>
+    </div>
   );
 }
 function EmployerApplicants() {
@@ -4938,234 +5517,250 @@ function EmployerApplicants() {
     app: Application;
     status: "ACCEPTED" | "REJECTED";
   } | null>(null);
+
   useEffect(() => {
     if (!id) return;
     applicationService
       .loadByJob(id)
       .catch((error) =>
         toast(
-          error instanceof Error ? error.message : "Could not load applicants",
+          error instanceof Error ? error.message : "Không thể tải danh sách ứng viên",
           "error",
         ),
       );
   }, [id]);
+
   if (!job || job.employerUserId !== user?.id)
     return (
       <EmptyPage
-        title="Listing not found"
-        text="You can only view applicants for tương lai own listings."
+        title="Không tìm thấy tin tuyển dụng"
+        text="Bạn chỉ có thể xem danh sách ứng viên cho các tin tuyển dụng thuộc tài khoản của mình."
         action={
-          <Link className="btn btn-primary" to="/employer/jobs">
-            Quay lại danh sách
+          <Link to="/employer/jobs">
+            <Button variant="primary" size="md">
+              Quay lại danh sách
+            </Button>
           </Link>
         }
       />
     );
-  const apps = applicationService
-    .all()
-    .filter(
-      (a) => a.jobId === job.id && (filter === "ALL" || a.status === filter),
-    );
+
+  const jobApps = applicationService.all().filter((a) => a.jobId === job.id);
+  const apps = jobApps.filter((a) => filter === "ALL" || a.status === filter);
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="CANDIDATE PIPELINE"
-        title="Applicants"
+        eyebrow="HỒ SƠ ỨNG VIÊN"
+        title="Danh sách ứng viên"
         subtitle={`${job.title} · ${job.company}`}
         action={
-          <Link to="/employer/jobs" className="btn btn-outline">
-            <ArrowLeft size={15} /> Quay lại danh sách
+          <Link to="/employer/jobs">
+            <Button variant="outline" size="md">
+              <ArrowLeft size={15} /> Quay lại danh sách
+            </Button>
           </Link>
         }
       />
-      <div className="application-summary">
-        <div>
-          <span>Tổng ứng viên</span>
-          <b>
-            {applicationService.all().filter((a) => a.jobId === job.id).length}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Tổng ứng viên
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-foreground)] mt-1 block">
+            {jobApps.length}
           </b>
         </div>
-        <div>
-          <span>Chờ xét duyệt</span>
-          <b>
-            {
-              applicationService
-                .all()
-                .filter((a) => a.jobId === job.id && a.status === "PENDING")
-                .length
-            }
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Chờ xét duyệt
+          </span>
+          <b className="text-2xl font-extrabold text-amber-700 mt-1 block">
+            {jobApps.filter((a) => a.status === "PENDING").length}
           </b>
         </div>
-        <div>
-          <span>Đã chấp nhận</span>
-          <b>
-            {
-              applicationService
-                .all()
-                .filter((a) => a.jobId === job.id && a.status === "ACCEPTED")
-                .length
-            }
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã chấp nhận
+          </span>
+          <b className="text-2xl font-extrabold text-emerald-700 mt-1 block">
+            {jobApps.filter((a) => a.status === "ACCEPTED").length}
           </b>
         </div>
-        <div>
-          <span>Đã từ chối</span>
-          <b>
-            {
-              applicationService
-                .all()
-                .filter((a) => a.jobId === job.id && a.status === "REJECTED")
-                .length
-            }
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã từ chối
+          </span>
+          <b className="text-2xl font-extrabold text-rose-700 mt-1 block">
+            {jobApps.filter((a) => a.status === "REJECTED").length}
           </b>
         </div>
       </div>
-      <section className="panel">
-        <div className="table-toolbar">
+
+      <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-[var(--color-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--color-background)]/40">
           <div>
-            <h2>Đơn ứng tuyển của ứng viên</h2>
-            <p className="muted tiny">
-              Xem hồ sơ và cập nhật trạng thái ứng tuyển.
+            <h2 className="text-sm font-bold text-[var(--color-foreground)]">
+              Đơn ứng tuyển của ứng viên
+            </h2>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+              Xem hồ sơ, tải CV và cập nhật trạng thái ứng tuyển.
             </p>
           </div>
-          <label className="sort-select">
-            <ListFilter size={15} />
-            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)] self-start sm:self-center">
+            <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="bg-transparent outline-none cursor-pointer font-medium"
+            >
               <option value="ALL">Tất cả trạng thái</option>
-              <option value="PENDING">Đang chờ</option>
+              <option value="PENDING">Đang chờ duyệt</option>
               <option value="ACCEPTED">Đã chấp nhận</option>
               <option value="REJECTED">Đã từ chối</option>
             </select>
           </label>
         </div>
+
         {apps.length ? (
-          <div className="table-scroll">
-            <table className="data-table">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr>
-                  <th>Ứng viên</th>
-                  <th>Ngày ứng tuyển</th>
-                  <th>Trạng thái</th>
-                  <th>CV</th>
-                  <th>Quyết định</th>
+                <tr className="bg-[var(--color-background)]/60 border-b border-[var(--color-border)] text-[var(--color-muted-foreground)] uppercase text-[11px] font-bold tracking-wider">
+                  <th className="py-3 px-4">Ứng viên</th>
+                  <th className="py-3 px-4">Ngày ứng tuyển</th>
+                  <th className="py-3 px-4">Trạng thái</th>
+                  <th className="py-3 px-4">CV đính kèm</th>
+                  <th className="py-3 px-4 text-right">Quyết định</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[var(--color-border)]">
                 {apps.map((a) => {
-                  const studentName = a.studentName || "Student applicant";
+                  const studentName = a.studentName || "Ứng viên sinh viên";
+                  const statusLabel =
+                    a.status === "PENDING"
+                      ? "Đang chờ duyệt"
+                      : a.status === "ACCEPTED"
+                        ? "Đã chấp nhận"
+                        : "Đã từ chối";
+                  const statusVariant =
+                    a.status === "ACCEPTED"
+                      ? "success"
+                      : a.status === "REJECTED"
+                        ? "danger"
+                        : "warning";
+
                   return (
-                    <tr key={a.id}>
-                      <td>
+                    <tr key={a.id} className="hover:bg-[var(--color-background)]/40 transition-colors duration-150">
+                      <td className="py-3.5 px-4">
                         <Link
                           to={`/employer/applications/${a.id}`}
-                          className="table-job candidate-link"
+                          className="flex items-center gap-3 group"
                         >
-                          <span className="avatar small">
+                          <span className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center font-bold text-[11px] shrink-0">
                             {studentName
                               .split(" ")
                               .map((x) => x[0])
                               .slice(0, 2)
                               .join("")}
                           </span>
-                          <span>
-                            <b>{studentName}</b>
-                            <small>
-                              {a.studentMajor ||
-                                a.studentUniversity ||
-                                "Student applicant"}
+                          <div>
+                            <b className="font-bold text-[var(--color-foreground)] group-hover:text-[var(--color-primary)] transition-colors duration-150 block">
+                              {studentName}
+                            </b>
+                            <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                              {a.studentMajor || a.studentUniversity || "Sinh viên"}
                             </small>
-                          </span>
+                          </div>
                         </Link>
                       </td>
-                      <td>{date(a.appliedAt)}</td>
-                      <td>
-                        <span
-                          className={`status-pill ${statusClass(a.status)}`}
-                        >
-                          {a.status}
-                        </span>
+                      <td className="py-3.5 px-4 text-[var(--color-muted-foreground)]">
+                        {date(a.appliedAt)}
                       </td>
-                      <td>
+                      <td className="py-3.5 px-4">
+                        <Badge variant={statusVariant}>{statusLabel}</Badge>
+                      </td>
+                      <td className="py-3.5 px-4">
                         {a.cvUrl?.startsWith("private-cv:") ? (
-                          <div className="cv-actions">
-                            <button
+                          <div className="flex items-center gap-2">
+                            <Button
                               type="button"
-                              className="btn btn-outline"
+                              variant="outline"
+                              size="sm"
                               onClick={async () => {
                                 try {
                                   await api.applications.viewCv(a.id);
                                 } catch (error) {
                                   toast(
-                                    error instanceof Error
-                                      ? error.message
-                                      : "Không thể xem CV",
+                                    error instanceof Error ? error.message : "Không thể xem CV",
                                     "error",
                                   );
                                 }
                               }}
                             >
-                              <Eye size={14} />
-                              Xem CV
-                            </button>
-
-                            <button
+                              <Eye size={13} /> Xem CV
+                            </Button>
+                            <Button
                               type="button"
-                              className="btn btn-primary"
+                              variant="primary"
+                              size="sm"
                               onClick={async () => {
                                 try {
                                   await api.applications.downloadCv(a.id);
                                 } catch (error) {
                                   toast(
-                                    error instanceof Error
-                                      ? error.message
-                                      : "Không thể tải CV",
+                                    error instanceof Error ? error.message : "Không thể tải CV",
                                     "error",
                                   );
                                 }
                               }}
                             >
                               Tải CV
-                            </button>
+                            </Button>
                           </div>
                         ) : (
-                          <span className="muted">Chưa có CV PDF</span>
+                          <span className="text-[var(--color-muted-foreground)] italic">
+                            Chưa có CV PDF
+                          </span>
                         )}
                       </td>
-                      <td>
+                      <td className="py-3.5 px-4">
                         {a.status === "PENDING" ? (
-                          <div className="table-actions">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              className="table-action approve-action"
-                              title="Accept applicant"
-                              onClick={() =>
-                                setConfirm({ app: a, status: "ACCEPTED" })
-                              }
+                              type="button"
+                              className="p-2 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors duration-150 cursor-pointer"
+                              title="Chấp nhận ứng viên"
+                              onClick={() => setConfirm({ app: a, status: "ACCEPTED" })}
                             >
-                              <Check size={16} />
+                              <Check size={15} />
                             </button>
                             <button
-                              className="table-action danger-action"
-                              title="Reject applicant"
-                              onClick={() =>
-                                setConfirm({ app: a, status: "REJECTED" })
-                              }
+                              type="button"
+                              className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
+                              title="Từ chối ứng viên"
+                              onClick={() => setConfirm({ app: a, status: "REJECTED" })}
                             >
-                              <X size={16} />
+                              <X size={15} />
                             </button>
                             <Link
-                              className="table-action"
+                              className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
                               to={`/employer/applications/${a.id}`}
-                              title="View details"
+                              title="Xem chi tiết"
                             >
-                              <Eye size={15} />
+                              <Eye size={14} />
                             </Link>
                           </div>
                         ) : (
-                          <Link
-                            className="table-link"
-                            to={`/employer/applications/${a.id}`}
-                          >
-                            Chi tiết <ArrowRight size={13} />
-                          </Link>
+                          <div className="flex justify-end">
+                            <Link
+                              className="inline-flex items-center gap-1 font-bold text-[var(--color-primary)] hover:underline"
+                              to={`/employer/applications/${a.id}`}
+                            >
+                              Chi tiết <ArrowRight size={13} />
+                            </Link>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -5175,66 +5770,59 @@ function EmployerApplicants() {
             </table>
           </div>
         ) : (
-          <EmptyPage
-            title="No applicants in this view"
-            text="Try another status or check back when students apply."
-          />
+          <div className="p-8">
+            <EmptyPage
+              title="Chưa có ứng viên nào"
+              text="Hãy chọn trạng thái lọc khác hoặc chờ sinh viên nộp hồ sơ vào vị trí này."
+            />
+          </div>
         )}
       </section>
+
       {confirm && (
         <Modal
           title={
             confirm.status === "ACCEPTED"
-              ? "Accept this applicant?"
-              : "Reject this application?"
+              ? "Chấp nhận ứng viên này?"
+              : "Từ chối hồ sơ ứng tuyển?"
           }
           onClose={() => setConfirm(null)}
         >
-          <p>
+          <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
             {confirm.status === "ACCEPTED"
-              ? "This will mark the candidate as accepted."
-              : "This will mark the candidate as not selected."}{" "}
-            This is a simulated demo action and updates all relevant views.
+              ? "Ứng viên sẽ được chuyển sang trạng thái Đã chấp nhận và nhận thông báo kết quả."
+              : "Ứng viên sẽ được chuyển sang trạng thái Đã từ chối."}
           </p>
-          <div className="modal-actions">
-            <button
-              className="btn btn-outline"
-              onClick={() => setConfirm(null)}
-            >
+          <div className="flex items-center justify-end gap-2.5 pt-4 mt-4 border-t border-[var(--color-border)]">
+            <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
               Hủy
-            </button>
-            <button
-              className={
-                confirm.status === "ACCEPTED"
-                  ? "btn btn-primary"
-                  : "btn btn-danger"
-              }
+            </Button>
+            <Button
+              variant={confirm.status === "ACCEPTED" ? "primary" : "destructive"}
+              size="sm"
               onClick={async () => {
                 try {
-                  await applicationService.updateStatus(
-                    confirm.app.id,
-                    confirm.status,
-                  );
+                  await applicationService.updateStatus(confirm.app.id, confirm.status);
                   setConfirm(null);
-                  toast(`Application ${confirm.status.toLowerCase()}`);
+                  toast(
+                    confirm.status === "ACCEPTED"
+                      ? "Đã chấp nhận ứng viên"
+                      : "Đã từ chối hồ sơ",
+                  );
                 } catch (e) {
                   toast(
-                    e instanceof Error
-                      ? e.message
-                      : "Could not update application",
+                    e instanceof Error ? e.message : "Không thể cập nhật trạng thái",
                     "error",
                   );
                 }
               }}
             >
-              {confirm.status === "ACCEPTED"
-                ? "Accept applicant"
-                : "Reject application"}
-            </button>
+              {confirm.status === "ACCEPTED" ? "Chấp nhận" : "Từ chối"}
+            </Button>
           </div>
         </Modal>
       )}
-    </>
+    </div>
   );
 }
 function AdminRoutes() {
@@ -5252,117 +5840,140 @@ function AdminRoutes() {
   );
 }
 function AdminDashboard() {
+  useEffect(() => {
+    store.loadUsers().catch(() => {});
+    applicationService.loadAllAdmin().catch(() => {});
+  }, []);
+
   const users = store.users(),
     jobs = jobService.all(),
     apps = applicationService.all();
+
+  const statsBreakdown = [
+    {
+      label: "Tài khoản đang hoạt động",
+      n: users.filter((u) => u.status === "ACTIVE").length,
+      total: users.length,
+      dot: "bg-emerald-500",
+      bar: "bg-emerald-500",
+    },
+    {
+      label: "Tin đã được duyệt",
+      n: jobs.filter((j) => j.moderation === "APPROVED").length,
+      total: jobs.length,
+      dot: "bg-emerald-500",
+      bar: "bg-emerald-500",
+    },
+    {
+      label: "Tin đang chờ duyệt",
+      n: jobs.filter((j) => j.moderation === "PENDING").length,
+      total: jobs.length,
+      dot: "bg-amber-500",
+      bar: "bg-amber-500",
+    },
+    {
+      label: "Tin đã đóng",
+      n: jobs.filter((j) => j.status === "CLOSED").length,
+      total: jobs.length,
+      dot: "bg-rose-500",
+      bar: "bg-rose-500",
+    },
+  ];
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="PLATFORM OVERVIEW"
-        title="Admin dashboard"
-        subtitle="A clear view of the StudentJob community and its activity."
+        eyebrow="TỔNG QUAN HỆ THỐNG"
+        title="Bảng điều khiển quản trị"
+        subtitle="Theo dõi hoạt động người dùng, tin tuyển dụng và đơn ứng tuyển trên toàn nền tảng."
         action={
-          <span className="status-pill status-blue">
+          <Badge variant="info">
             <ShieldCheck size={13} /> Quyền quản trị viên
-          </span>
+          </Badge>
         }
       />
-      <div className="metrics-grid four">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Metric
-          label="Total users"
+          label="Tổng tài khoản"
           value={users.length}
-          icon={<Users />}
-          trend="Across all account types"
+          icon={<Users size={18} />}
+          trend="Tất cả vai trò"
+          variant="blue"
         />
         <Metric
-          label="Students"
+          label="Sinh viên"
           value={users.filter((u) => u.role === "STUDENT").length}
-          icon={<GraduationCap />}
+          icon={<GraduationCap size={18} />}
           variant="green"
         />
         <Metric
-          label="Employers"
+          label="Nhà tuyển dụng"
           value={users.filter((u) => u.role === "EMPLOYER").length}
-          icon={<Building2 />}
+          icon={<Building2 size={18} />}
           variant="purple"
         />
         <Metric
-          label="Job listings"
+          label="Tin tuyển dụng"
           value={jobs.length}
-          icon={<BriefcaseBusiness />}
+          icon={<BriefcaseBusiness size={18} />}
           variant="amber"
         />
       </div>
-      <div className="metrics-grid four admin-secondary-metrics">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Metric
-          label="Open jobs"
+          label="Tin đang mở"
           value={jobs.filter((j) => j.status === "OPEN").length}
-          icon={<Globe />}
+          icon={<Globe size={18} />}
+          variant="blue"
         />
         <Metric
-          label="Closed jobs"
+          label="Tin đã đóng"
           value={jobs.filter((j) => j.status === "CLOSED").length}
-          icon={<Ban />}
+          icon={<Ban size={18} />}
           variant="purple"
         />
         <Metric
-          label="Pending moderation"
+          label="Chờ kiểm duyệt"
           value={jobs.filter((j) => j.moderation === "PENDING").length}
-          icon={<Clock3 />}
+          icon={<Clock3 size={18} />}
           variant="amber"
         />
         <Metric
-          label="Applications"
+          label="Đơn ứng tuyển"
           value={apps.length}
-          icon={<FileText />}
+          icon={<FileText size={18} />}
           variant="green"
         />
       </div>
-      <div className="dashboard-two-col">
-        <section className="panel">
-          <div className="panel-heading">
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
             <div>
-              <h2>Hoạt động hệ thống</h2>
-              <p>Tổng quan các chỉ số chính</p>
+              <h2 className="text-base font-bold text-[var(--color-foreground)]">
+                Hoạt động hệ thống
+              </h2>
+              <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+                Tỷ lệ các chỉ số vận hành chính
+              </p>
             </div>
-            <Activity size={18} className="brand-blue" />
+            <Activity size={18} className="text-[var(--color-primary)]" />
           </div>
-          <div className="status-breakdown admin-breakdown">
-            {[
-              {
-                label: "Active accounts",
-                n: users.filter((u) => u.status === "ACTIVE").length,
-                total: users.length,
-                c: "accepted",
-              },
-              {
-                label: "Approved listings",
-                n: jobs.filter((j) => j.moderation === "APPROVED").length,
-                total: jobs.length,
-                c: "accepted",
-              },
-              {
-                label: "Pending review",
-                n: jobs.filter((j) => j.moderation === "PENDING").length,
-                total: jobs.length,
-                c: "pending",
-              },
-              {
-                label: "Closed listings",
-                n: jobs.filter((j) => j.status === "CLOSED").length,
-                total: jobs.length,
-                c: "rejected",
-              },
-            ].map((v) => (
-              <div className="breakdown-row" key={v.label}>
-                <span>
-                  <i className={`legend-dot ${v.c}`} />
-                  {v.label}
-                </span>
-                <b>{v.n}</b>
-                <div className="breakdown-track">
-                  <span
-                    className={v.c}
+          <div className="space-y-4">
+            {statsBreakdown.map((v) => (
+              <div className="space-y-1.5" key={v.label}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="inline-flex items-center gap-2 font-medium text-[var(--color-foreground)]">
+                    <span className={`w-2 h-2 rounded-full ${v.dot}`} />
+                    {v.label}
+                  </span>
+                  <b className="font-bold text-[var(--color-foreground)]">{v.n}</b>
+                </div>
+                <div className="w-full h-2 rounded-full bg-[var(--color-muted)] overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${v.bar}`}
                     style={{ width: `${v.total ? (v.n / v.total) * 100 : 0}%` }}
                   />
                 </div>
@@ -5370,87 +5981,145 @@ function AdminDashboard() {
             ))}
           </div>
         </section>
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Cần xử lý</h2>
-              <p>Các mục đang chờ quản trị viên duyệt</p>
-            </div>
+
+        <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
+          <div className="pb-3 border-b border-[var(--color-border)]">
+            <h2 className="text-base font-bold text-[var(--color-foreground)]">
+              Cần xử lý
+            </h2>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+              Các tác vụ đang chờ quản trị viên kiểm tra
+            </p>
           </div>
-          <div className="admin-task-list">
-            <Link to="/admin/jobs" className="admin-task">
-              <span className="task-icon amber">
-                <Clock3 size={18} />
-              </span>
-              <span>
-                <b>Tin đang chờ duyệt</b>
-                <small>
-                  {jobs.filter((j) => j.moderation === "PENDING").length}{" "}
-                  listings to review
-                </small>
-              </span>
-              <ArrowRight size={16} />
+          <div className="space-y-2.5">
+            <Link
+              to="/admin/jobs"
+              className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-background)]/50 transition-colors duration-150 group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+                  <Clock3 size={17} />
+                </span>
+                <div>
+                  <b className="text-xs font-bold text-[var(--color-foreground)] block">
+                    Tin đang chờ duyệt
+                  </b>
+                  <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                    {jobs.filter((j) => j.moderation === "PENDING").length} tin cần xem xét
+                  </small>
+                </div>
+              </div>
+              <ArrowRight size={15} className="text-[var(--color-muted-foreground)] group-hover:text-[var(--color-primary)]" />
             </Link>
-            <Link to="/admin/users" className="admin-task">
-              <span className="task-icon purple">
-                <Users size={18} />
-              </span>
-              <span>
-                <b>Quản lý tài khoản</b>
-                <small>
-                  {users.filter((u) => u.status === "BLOCKED").length} blocked
-                  accounts
-                </small>
-              </span>
-              <ArrowRight size={16} />
+
+            <Link
+              to="/admin/users"
+              className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-background)]/50 transition-colors duration-150 group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center shrink-0">
+                  <Users size={17} />
+                </span>
+                <div>
+                  <b className="text-xs font-bold text-[var(--color-foreground)] block">
+                    Quản lý tài khoản
+                  </b>
+                  <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                    {users.filter((u) => u.status === "BLOCKED").length} tài khoản đang bị khóa
+                  </small>
+                </div>
+              </div>
+              <ArrowRight size={15} className="text-[var(--color-muted-foreground)] group-hover:text-[var(--color-primary)]" />
             </Link>
-            <Link to="/admin/applications" className="admin-task">
-              <span className="task-icon blue">
-                <ClipboardList size={18} />
-              </span>
-              <span>
-                <b>Tổng quan ứng tuyển</b>
-                <small>{apps.length} applications tracked</small>
-              </span>
-              <ArrowRight size={16} />
+
+            <Link
+              to="/admin/applications"
+              className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-background)]/50 transition-colors duration-150 group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-lg bg-sky-50 border border-sky-200 text-[var(--color-primary)] flex items-center justify-center shrink-0">
+                  <ClipboardList size={17} />
+                </span>
+                <div>
+                  <b className="text-xs font-bold text-[var(--color-foreground)] block">
+                    Tổng quan ứng tuyển
+                  </b>
+                  <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                    {apps.length} hồ sơ đang được theo dõi
+                  </small>
+                </div>
+              </div>
+              <ArrowRight size={15} className="text-[var(--color-muted-foreground)] group-hover:text-[var(--color-primary)]" />
             </Link>
           </div>
         </section>
       </div>
-      <section className="panel">
-        <div className="panel-heading">
+
+      <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
           <div>
-            <h2>Tin tuyển dụng gần đây</h2>
-            <p>Nội dung mới nhất trên hệ thống</p>
+            <h2 className="text-base font-bold text-[var(--color-foreground)]">
+              Tin tuyển dụng gần đây
+            </h2>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+              Các bài đăng mới nhất trên hệ thống
+            </p>
           </div>
-          <Link to="/admin/jobs" className="text-link">
-            Duyệt tin tuyển dụng <ArrowRight size={15} />
+          <Link
+            to="/admin/jobs"
+            className="text-xs font-semibold text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
+          >
+            Duyệt tin tuyển dụng <ArrowRight size={14} />
           </Link>
         </div>
-        <div className="employer-job-list">
+
+        <div className="divide-y divide-[var(--color-border)]">
           {[...jobs]
             .sort((a, b) => b.postedAt.localeCompare(a.postedAt))
             .slice(0, 4)
             .map((j) => (
-              <div className="employer-job-row" key={j.id}>
-                <CompanyMark name={j.company} />
-                <div className="employer-job-main">
-                  <b>{j.title}</b>
-                  <span>
-                    {j.company} · {date(j.postedAt)}
-                  </span>
+              <div
+                className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                key={j.id}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <CompanyMark name={j.company} />
+                  <div className="min-w-0">
+                    <b className="text-xs font-bold text-[var(--color-foreground)] block truncate">
+                      {j.title}
+                    </b>
+                    <span className="text-[11px] text-[var(--color-muted-foreground)] block mt-0.5">
+                      {j.company} · {date(j.postedAt)}
+                    </span>
+                  </div>
                 </div>
-                <span className={`status-pill ${statusClass(j.moderation)}`}>
-                  {j.moderation}
-                </span>
-                <Link className="btn btn-outline btn-sm" to="/admin/jobs">
-                  Xem xét
-                </Link>
+                <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+                  <Badge
+                    variant={
+                      j.moderation === "APPROVED"
+                        ? "success"
+                        : j.moderation === "REJECTED"
+                          ? "danger"
+                          : "warning"
+                    }
+                  >
+                    {j.moderation === "APPROVED"
+                      ? "Đã duyệt"
+                      : j.moderation === "REJECTED"
+                        ? "Bị từ chối"
+                        : "Chờ duyệt"}
+                  </Badge>
+                  <Link to="/admin/jobs">
+                    <Button variant="outline" size="sm">
+                      Xem xét
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ))}
         </div>
       </section>
-    </>
+    </div>
   );
 }
 
@@ -5483,7 +6152,7 @@ function AdminUsers() {
           setLoadError(
             error instanceof Error
               ? error.message
-              : "Không thể tải danh sách người dùng"
+              : "Không thể tải danh sách người dùng",
           );
         }
       } finally {
@@ -5504,7 +6173,7 @@ function AdminUsers() {
       (status === "ALL" || u.status === status) &&
       `${u.name} ${u.email} ${u.company || ""}`
         .toLowerCase()
-        .includes(q.toLowerCase())
+        .includes(q.toLowerCase()),
   );
 
   const handleChangeStatus = async () => {
@@ -5516,9 +6185,7 @@ function AdminUsers() {
       const updated = await userService.toggleStatus(confirm.id);
 
       setUsers((current) =>
-        current.map((u) =>
-          u.id === updated.id ? updated : u
-        )
+        current.map((u) => (u.id === updated.id ? updated : u)),
       );
 
       setConfirm(null);
@@ -5526,14 +6193,14 @@ function AdminUsers() {
       toast(
         updated.status === "BLOCKED"
           ? "Đã khóa tài khoản thành công"
-          : "Đã mở khóa tài khoản thành công"
+          : "Đã mở khóa tài khoản thành công",
       );
     } catch (error) {
       toast(
         error instanceof Error
           ? error.message
           : "Không thể thay đổi trạng thái tài khoản",
-        "error"
+        "error",
       );
     } finally {
       setSaving(false);
@@ -5541,131 +6208,177 @@ function AdminUsers() {
   };
 
   return (
-    <>
-     
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="COMMUNITY MANAGEMENT"
-        title="User management"
-        subtitle="Review accounts and keep the marketplace healthy."
+        eyebrow="QUẢN LÝ CỘNG ĐỒNG"
+        title="Quản lý người dùng"
+        subtitle="Kiểm tra tài khoản sinh viên, nhà tuyển dụng và giữ an toàn cho hệ thống."
       />
 
       {loading && (
-        <p>Đang tải danh sách người dùng...</p>
+        <div className="p-3.5 rounded-lg bg-white border border-[var(--color-border)] text-xs text-[var(--color-muted-foreground)]">
+          Đang tải danh sách người dùng...
+        </div>
       )}
 
       {loadError && (
-        <p style={{ color: "red" }}>
+        <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
           {loadError}
-        </p>
+        </div>
       )}
 
-      <div className="application-summary">
-        <div>
-          <span>Tổng tài khoản</span>
-          <b>{store.users().length}</b>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Tổng tài khoản
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-foreground)] mt-1 block">
+            {users.length}
+          </b>
         </div>
-        <div>
-          <span>Sinh viên</span>
-          <b>{store.users().filter((u) => u.role === "STUDENT").length}</b>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Sinh viên
+          </span>
+          <b className="text-2xl font-extrabold text-emerald-700 mt-1 block">
+            {users.filter((u) => u.role === "STUDENT").length}
+          </b>
         </div>
-        <div>
-          <span>Nhà tuyển dụng</span>
-          <b>{store.users().filter((u) => u.role === "EMPLOYER").length}</b>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Nhà tuyển dụng
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-primary)] mt-1 block">
+            {users.filter((u) => u.role === "EMPLOYER").length}
+          </b>
         </div>
-        <div>
-          <span>Ngừng hoạt động</span>
-          <b>{store.users().filter((u) => u.status === "BLOCKED").length}</b>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã khóa
+          </span>
+          <b className="text-2xl font-extrabold text-rose-700 mt-1 block">
+            {users.filter((u) => u.status === "BLOCKED").length}
+          </b>
         </div>
       </div>
-      <section className="panel">
-        <div className="table-toolbar">
-          <label className="table-search">
-            <Search size={16} />
+
+      <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-[var(--color-border)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--color-background)]/40">
+          <div className="relative flex-1 max-w-sm">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]"
+            />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tìm theo tên, email hoặc công ty..."
+              className="w-full bg-white border border-[var(--color-border)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
             />
-          </label>
-          <label className="sort-select">
-            <Users size={15} />
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="ALL">Tất cả vai trò</option>
-              <option value="STUDENT">Sinh viên</option>
-              <option value="EMPLOYER">Nhà tuyển dụng</option>
-              <option value="ADMIN">Quản trị viên</option>
-            </select>
-          </label>
-          <label className="sort-select">
-            <ListFilter size={15} />
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="ACTIVE">Đang hoạt động</option>
-              <option value="BLOCKED">Đã khóa</option>
-            </select>
-          </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
+              <Users size={14} className="text-[var(--color-muted-foreground)]" />
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="bg-transparent outline-none cursor-pointer font-medium"
+              >
+                <option value="ALL">Tất cả vai trò</option>
+                <option value="STUDENT">Sinh viên</option>
+                <option value="EMPLOYER">Nhà tuyển dụng</option>
+                <option value="ADMIN">Quản trị viên</option>
+              </select>
+            </label>
+
+            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
+              <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="bg-transparent outline-none cursor-pointer font-medium"
+              >
+                <option value="ALL">Tất cả trạng thái</option>
+                <option value="ACTIVE">Đang hoạt động</option>
+                <option value="BLOCKED">Đã khóa</option>
+              </select>
+            </label>
+          </div>
         </div>
-        <div className="table-scroll">
-          <table className="data-table">
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr>
-                <th>Người dùng</th>
-                <th>Vai trò</th>
-                <th>Ngày tham gia</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
+              <tr className="bg-[var(--color-background)]/60 border-b border-[var(--color-border)] text-[var(--color-muted-foreground)] uppercase text-[11px] font-bold tracking-wider">
+                <th className="py-3 px-4">Người dùng</th>
+                <th className="py-3 px-4">Vai trò</th>
+                <th className="py-3 px-4">Ngày tham gia</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <div className="table-job">
-                      <span className="avatar small">
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {filteredUsers.map((u) => (
+                <tr key={u.id} className="hover:bg-[var(--color-background)]/40 transition-colors duration-150">
+                  <td className="py-3.5 px-4">
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center font-bold text-[11px] shrink-0">
                         {u.name
                           .split(" ")
                           .map((x) => x[0])
                           .slice(0, 2)
                           .join("")}
                       </span>
-                      <span>
-                        <b>{u.name}</b>
-                        <small>{u.email}</small>
-                      </span>
+                      <div>
+                        <b className="font-bold text-[var(--color-foreground)] block">
+                          {u.name}
+                        </b>
+                        <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                          {u.email}
+                        </small>
+                      </div>
                     </div>
                   </td>
-                  <td>
-                    <span className="role-chip">{roleLabel(u.role)}</span>
+                  <td className="py-3.5 px-4">
+                    <Badge variant="neutral">{roleLabel(u.role)}</Badge>
                   </td>
-                  <td>{date(u.joinedAt)}</td>
-                  <td>
-                    <span className={`status-pill ${statusClass(u.status)}`}>
-                      {u.status}
-                    </span>
+                  <td className="py-3.5 px-4 text-[var(--color-muted-foreground)]">
+                    {date(u.joinedAt)}
                   </td>
-                  <td>
-                    <div className="table-actions">
+                  <td className="py-3.5 px-4">
+                    <Badge variant={u.status === "ACTIVE" ? "success" : "danger"}>
+                      {u.status === "ACTIVE" ? "Hoạt động" : "Đã khóa"}
+                    </Badge>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <div className="flex items-center justify-end gap-1.5">
                       <Link
                         to={`/admin/users/${u.id}`}
-                        className="table-action"
-                        title="View details"
+                        className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
+                        title="Xem chi tiết"
                       >
-                        <Eye size={15} />
+                        <Eye size={14} />
                       </Link>
                       {u.role !== "ADMIN" && (
                         <button
-                          className="table-action"
+                          type="button"
+                          className={`p-2 rounded-lg border transition-colors duration-150 cursor-pointer ${
+                            u.status === "ACTIVE"
+                              ? "border-rose-200 text-rose-600 hover:bg-rose-50"
+                              : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          }`}
                           title={
                             u.status === "ACTIVE"
-                              ? "Deactivate user"
-                              : "Activate user"
+                              ? "Khóa tài khoản"
+                              : "Mở khóa tài khoản"
                           }
                           onClick={() => setConfirm(u)}
                         >
                           {u.status === "ACTIVE" ? (
-                            <Ban size={15} />
+                            <Ban size={14} />
                           ) : (
-                            <CircleCheck size={15} />
+                            <CircleCheck size={14} />
                           )}
                         </button>
                       )}
@@ -5676,161 +6389,178 @@ function AdminUsers() {
             </tbody>
           </table>
         </div>
-        {!users.length && (
-          <EmptyPage
-            title="No users found"
-            text="Try changing tương lai search or filters."
-          />
+
+        {!filteredUsers.length && (
+          <div className="p-8">
+            <EmptyPage
+              title="Không tìm thấy người dùng"
+              text="Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc."
+            />
+          </div>
         )}
       </section>
+
       {confirm && (
         <Modal
-          title={`${confirm.status === "ACTIVE" ? "Deactivate" : "Activate"} this account?`}
+          title={
+            confirm.status === "ACTIVE"
+              ? "Khóa tài khoản này?"
+              : "Mở khóa tài khoản này?"
+          }
           onClose={() => setConfirm(null)}
         >
-          <p>
-            {confirm.name}'s account will be marked{" "}
-            {confirm.status === "ACTIVE"
-              ? "Bạn có chắc muốn khóa tài khoản này?"
-              : "Bạn có chắc muốn mở khóa tài khoản này?"}
-            demo. This does not send any notification.
+          <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+            Bạn có chắc chắn muốn{" "}
+            <b className="text-[var(--color-foreground)]">
+              {confirm.status === "ACTIVE" ? "khóa" : "mở khóa"}
+            </b>{" "}
+            tài khoản <b className="text-[var(--color-foreground)]">{confirm.name}</b> ({confirm.email}) không?
           </p>
-          <div className="modal-actions">
-            <button
-              className="btn btn-outline"
-              onClick={() => setConfirm(null)}
-            >
+          <div className="flex items-center justify-end gap-2.5 pt-4 mt-4 border-t border-[var(--color-border)]">
+            <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
               Hủy
-            </button>
-            
-            <button
-              type="button"
-              className="btn btn-primary"
+            </Button>
+            <Button
+              variant={confirm.status === "ACTIVE" ? "destructive" : "primary"}
+              size="sm"
               onClick={handleChangeStatus}
               disabled={saving}
             >
               {saving ? "Đang xử lý..." : "Xác nhận thay đổi"}
-            </button>
-
+            </Button>
           </div>
         </Modal>
       )}
-    </>
+    </div>
   );
 }
 function AdminUserDetails() {
   const { id = "" } = useParams();
   const u = store.users().find((x) => x.id === id);
   const toast = useToast();
+
   if (!u)
     return (
       <EmptyPage
-        title="User not found"
-        text="This account does not exist in the demo data."
+        title="Không tìm thấy người dùng"
+        text="Tài khoản này không tồn tại trong dữ liệu hệ thống."
         action={
-          <Link className="btn btn-primary" to="/admin/users">
-            Quay lại người dùng
+          <Link to="/admin/users">
+            <Button variant="primary" size="md">
+              Quay lại danh sách
+            </Button>
           </Link>
         }
       />
     );
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="ACCOUNT DETAILS"
+        eyebrow="CHI TIẾT TÀI KHOẢN"
         title={u.name}
-        subtitle="Review account information and current status."
+        subtitle="Xem thông tin chi tiết và trạng thái hoạt động của tài khoản."
         action={
-          <Link to="/admin/users" className="btn btn-outline">
-            <ArrowLeft size={15} /> Quay lại người dùng
+          <Link to="/admin/users">
+            <Button variant="outline" size="md">
+              <ArrowLeft size={15} /> Quay lại danh sách
+            </Button>
           </Link>
         }
       />
-      <div className="profile-page-grid">
-        <section className="panel profile-main-panel">
-          <div className="profile-hero">
-            <span className="avatar profile-avatar">
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <section className="lg:col-span-2 bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-6">
+          <div className="flex items-center gap-4 pb-5 border-b border-[var(--color-border)]">
+            <span className="w-14 h-14 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 flex items-center justify-center font-extrabold text-lg shrink-0">
               {u.name
                 .split(" ")
                 .map((s) => s[0])
                 .slice(0, 2)
                 .join("")}
             </span>
-            <div>
-              <h2>{u.name}</h2>
-              <p>{roleLabel(u.role)}</p>
-              <span className={`status-pill ${statusClass(u.status)}`}>
-                {u.status}
-              </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-[var(--color-foreground)]">
+                {u.name}
+              </h2>
+              <div className="flex items-center gap-2">
+                <Badge variant="neutral">{roleLabel(u.role)}</Badge>
+                <Badge variant={u.status === "ACTIVE" ? "success" : "danger"}>
+                  {u.status === "ACTIVE" ? "Hoạt động" : "Đã khóa"}
+                </Badge>
+              </div>
             </div>
           </div>
-          <div className="form-section-head">
-            <h3>Thông tin tài khoản</h3>
-          </div>
-          <div className="admin-user-info">
-            <SideInfo icon={<Mail />} label="Email address" value={u.email} />
+
+          <h3 className="text-sm font-bold text-[var(--color-foreground)]">
+            Thông tin tài khoản
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <SideInfo icon={<Mail size={16} />} label="Địa chỉ email" value={u.email} />
             <SideInfo
-              icon={<CalendarDays />}
-              label="Joined on"
+              icon={<CalendarDays size={16} />}
+              label="Ngày tham gia"
               value={date(u.joinedAt)}
             />
             <SideInfo
-              icon={<ShieldCheck />}
-              label="Account role"
+              icon={<ShieldCheck size={16} />}
+              label="Vai trò"
               value={roleLabel(u.role)}
             />
             {u.phone && (
-              <SideInfo icon={<Phone />} label="Phone" value={u.phone} />
+              <SideInfo icon={<Phone size={16} />} label="Số điện thoại" value={u.phone} />
             )}
             {u.company && (
               <SideInfo
-                icon={<Building2 />}
-                label="Company"
+                icon={<Building2 size={16} />}
+                label="Công ty"
                 value={u.company}
               />
             )}
             {u.university && (
               <SideInfo
-                icon={<GraduationCap />}
-                label="University"
+                icon={<GraduationCap size={16} />}
+                label="Trường học"
                 value={u.university}
               />
             )}
             {u.major && (
-              <SideInfo icon={<BookIcon />} label="Major" value={u.major} />
+              <SideInfo icon={<BookIcon />} label="Chuyên ngành" value={u.major} />
             )}
           </div>
         </section>
-        <aside className="panel detail-section">
-          <h3>Thao tác tài khoản</h3>
-          <p className="muted small-text">
-            Thao tác minh họa chỉ ảnh hưởng đến dữ liệu mẫu cục bộ.
+
+        <aside className="lg:col-span-1 bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
+          <h3 className="text-sm font-bold text-[var(--color-foreground)] pb-2 border-b border-[var(--color-border)]">
+            Thao tác quản trị
+          </h3>
+          <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+            Quản trị viên có thể tạm khóa hoặc mở khóa quyền truy cập của tài khoản này.
           </p>
           {u.role !== "ADMIN" && (
-            <button
-              className={
-                u.status === "ACTIVE"
-                  ? "btn btn-danger btn-block"
-                  : "btn btn-primary btn-block"
-              }
-              onClick={() => {
-                userService.toggleStatus(u.id);
-                toast("Account status updated");
+            <Button
+              variant={u.status === "ACTIVE" ? "destructive" : "primary"}
+              size="md"
+              fullWidth
+              onClick={async () => {
+                await userService.toggleStatus(u.id);
+                toast("Đã cập nhật trạng thái tài khoản");
                 window.location.reload();
               }}
             >
-              {u.status === "ACTIVE" ? <Ban size={16} /> : <Check size={16} />}{" "}
-              {u.status === "ACTIVE"
-                ? "Deactivate account"
-                : "Activate account"}
-            </button>
+              {u.status === "ACTIVE" ? <Ban size={15} /> : <Check size={15} />}
+              {u.status === "ACTIVE" ? "Khóa tài khoản" : "Mở khóa tài khoản"}
+            </Button>
           )}
-          <Link to="/admin/users" className="btn btn-outline btn-block">
-            Quay lại danh sách người dùng
+          <Link to="/admin/users" className="block">
+            <Button variant="outline" size="md" fullWidth>
+              Quay lại danh sách người dùng
+            </Button>
           </Link>
         </aside>
       </div>
-    </>
+    </div>
   );
 }
 function BookIcon() {
@@ -5844,138 +6574,180 @@ function AdminJobs() {
     job: Job;
     status: "APPROVED" | "REJECTED";
   } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [preview, setPreview] = useState<Job | null>(null);
-  const jobs = jobService
-    .all()
-    .filter(
-      (j) =>
-        (moderation === "ALL" || j.moderation === moderation) &&
-        `${j.title} ${j.company} ${j.category}`
-          .toLowerCase()
-          .includes(q.toLowerCase()),
-    );
+
+  const allJobs = jobService.all();
+  const jobs = allJobs.filter(
+    (j) =>
+      (moderation === "ALL" || j.moderation === moderation) &&
+      `${j.title} ${j.company} ${j.category}`
+        .toLowerCase()
+        .includes(q.toLowerCase()),
+  );
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="CONTENT REVIEW"
-        title="Job moderation"
-        subtitle="Review listings before they are shown to students."
+        eyebrow="KIỂM DUYỆT NỘI DUNG"
+        title="Duyệt tin tuyển dụng"
+        subtitle="Xem xét và phê duyệt các tin tuyển dụng trước khi hiển thị công khai tới sinh viên."
       />
-      <div className="application-summary">
-        <div>
-          <span>Tổng tin tuyển dụng</span>
-          <b>{jobService.all().length}</b>
-        </div>
-        <div>
-          <span>Chờ xét duyệt</span>
-          <b>
-            {jobService.all().filter((j) => j.moderation === "PENDING").length}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Tổng tin tuyển dụng
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-foreground)] mt-1 block">
+            {allJobs.length}
           </b>
         </div>
-        <div>
-          <span>Đã duyệt</span>
-          <b>
-            {jobService.all().filter((j) => j.moderation === "APPROVED").length}
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Chờ xét duyệt
+          </span>
+          <b className="text-2xl font-extrabold text-amber-700 mt-1 block">
+            {allJobs.filter((j) => j.moderation === "PENDING").length}
           </b>
         </div>
-        <div>
-          <span>Đã từ chối</span>
-          <b>
-            {jobService.all().filter((j) => j.moderation === "REJECTED").length}
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã duyệt
+          </span>
+          <b className="text-2xl font-extrabold text-emerald-700 mt-1 block">
+            {allJobs.filter((j) => j.moderation === "APPROVED").length}
+          </b>
+        </div>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã từ chối
+          </span>
+          <b className="text-2xl font-extrabold text-rose-700 mt-1 block">
+            {allJobs.filter((j) => j.moderation === "REJECTED").length}
           </b>
         </div>
       </div>
-      <section className="panel">
-        <div className="table-toolbar">
-          <label className="table-search">
-            <Search size={16} />
+
+      <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-[var(--color-border)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--color-background)]/40">
+          <div className="relative flex-1 max-w-sm">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]"
+            />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tìm theo chức danh hoặc công ty..."
+              className="w-full bg-white border border-[var(--color-border)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
             />
-          </label>
-          <label className="sort-select">
-            <ShieldCheck size={15} />
+          </div>
+
+          <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)] self-start sm:self-center">
+            <ShieldCheck size={14} className="text-[var(--color-muted-foreground)]" />
             <select
               value={moderation}
               onChange={(e) => setModeration(e.target.value)}
+              className="bg-transparent outline-none cursor-pointer font-medium"
             >
               <option value="ALL">Tất cả trạng thái duyệt</option>
-              <option value="PENDING">Đang chờ</option>
+              <option value="PENDING">Chờ duyệt</option>
               <option value="APPROVED">Đã duyệt</option>
               <option value="REJECTED">Đã từ chối</option>
             </select>
           </label>
         </div>
-        <div className="table-scroll">
-          <table className="data-table">
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr>
-                <th>Tin tuyển dụng</th>
-                <th>Nhà tuyển dụng</th>
-                <th>Đã gửi</th>
-                <th>Trạng thái công việc</th>
-                <th>Kiểm duyệt</th>
-                <th>Xem xét</th>
+              <tr className="bg-[var(--color-background)]/60 border-b border-[var(--color-border)] text-[var(--color-muted-foreground)] uppercase text-[11px] font-bold tracking-wider">
+                <th className="py-3 px-4">Tin tuyển dụng</th>
+                <th className="py-3 px-4">Nhà tuyển dụng</th>
+                <th className="py-3 px-4">Ngày gửi</th>
+                <th className="py-3 px-4">Trạng thái tin</th>
+                <th className="py-3 px-4">Kiểm duyệt</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[var(--color-border)]">
               {jobs.map((j) => (
-                <tr key={j.id}>
-                  <td>
-                    <div className="table-job">
+                <tr key={j.id} className="hover:bg-[var(--color-background)]/40 transition-colors duration-150">
+                  <td className="py-3.5 px-4">
+                    <div className="flex items-center gap-3">
                       <CompanyMark name={j.company} />
-                      <span>
-                        <b>{j.title}</b>
-                        <small>
-                          {j.category} · {j.type.replace("_", " ")}
+                      <div>
+                        <b className="font-bold text-[var(--color-foreground)] block">
+                          {j.title}
+                        </b>
+                        <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                          {j.category} · {jobTypeVi(j.type)}
                         </small>
-                      </span>
+                      </div>
                     </div>
                   </td>
-                  <td>{j.company}</td>
-                  <td>{date(j.postedAt)}</td>
-                  <td>
-                    <span className={`status-pill ${statusClass(j.status)}`}>
-                      {j.status}
-                    </span>
+                  <td className="py-3.5 px-4 text-[var(--color-foreground)] font-medium">
+                    {j.company}
                   </td>
-                  <td>
-                    <span
-                      className={`status-pill ${statusClass(j.moderation)}`}
+                  <td className="py-3.5 px-4 text-[var(--color-muted-foreground)]">
+                    {date(j.postedAt)}
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <Badge variant={j.status === "OPEN" ? "success" : "neutral"}>
+                      {j.status === "OPEN" ? "Đang mở" : "Đã đóng"}
+                    </Badge>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <Badge
+                      variant={
+                        j.moderation === "APPROVED"
+                          ? "success"
+                          : j.moderation === "REJECTED"
+                            ? "danger"
+                            : "warning"
+                      }
                     >
-                      {j.moderation}
-                    </span>
+                      {j.moderation === "APPROVED"
+                        ? "Đã duyệt"
+                        : j.moderation === "REJECTED"
+                          ? "Đã từ chối"
+                          : "Chờ duyệt"}
+                    </Badge>
                   </td>
-                  <td>
-                    <div className="table-actions">
+                  <td className="py-3.5 px-4">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
-                        className="table-action"
-                        title="Preview listing"
+                        type="button"
+                        className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
+                        title="Xem trước tin"
                         onClick={() => setPreview(j)}
                       >
-                        <Eye size={15} />
+                        <Eye size={14} />
                       </button>
                       {j.moderation === "PENDING" && (
                         <>
                           <button
-                            className="table-action approve-action"
-                            title="Approve listing"
-                            onClick={() =>
-                              setConfirm({ job: j, status: "APPROVED" })
-                            }
+                            type="button"
+                            className="p-2 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors duration-150 cursor-pointer"
+                            title="Duyệt tin"
+                            onClick={() => {
+                              setRejectReason("");
+                              setConfirm({ job: j, status: "APPROVED" });
+                            }}
                           >
-                            <Check size={15} />
+                            <Check size={14} />
                           </button>
                           <button
-                            className="table-action danger-action"
-                            title="Reject listing"
-                            onClick={() =>
-                              setConfirm({ job: j, status: "REJECTED" })
-                            }
+                            type="button"
+                            className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
+                            title="Từ chối tin"
+                            onClick={() => {
+                              setRejectReason("");
+                              setConfirm({ job: j, status: "REJECTED" });
+                            }}
                           >
-                            <X size={15} />
+                            <X size={14} />
                           </button>
                         </>
                       )}
@@ -5986,120 +6758,176 @@ function AdminJobs() {
             </tbody>
           </table>
         </div>
+
         {!jobs.length && (
-          <EmptyPage
-            title="No listings found"
-            text="Try changing the search or moderation filter."
-          />
+          <div className="p-8">
+            <EmptyPage
+              title="Không tìm thấy tin tuyển dụng"
+              text="Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc kiểm duyệt."
+            />
+          </div>
         )}
       </section>
+
       {confirm && (
         <Modal
           title={
             confirm.status === "APPROVED"
-              ? "Approve this listing?"
-              : "Reject this listing?"
+              ? "Phê duyệt tin tuyển dụng này?"
+              : "Từ chối tin tuyển dụng này?"
           }
           onClose={() => setConfirm(null)}
         >
-          <p>
-            <b>{confirm.job.title}</b> at {confirm.job.company} will be marked{" "}
-            {confirm.status.toLowerCase()}. The job's open/closed status remains
-            separate from moderation status.
-          </p>
-          <div className="modal-actions">
-            <button
-              className="btn btn-outline"
-              onClick={() => setConfirm(null)}
-            >
-              Hủy
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={async () => {
-                try {
-                  const reason =
-                    confirm.status === "REJECTED"
-                      ? window.prompt("Reason for rejection?") || ""
-                      : "";
-                  if (confirm.status === "REJECTED" && !reason.trim()) return;
-                  await api.admin.moderate(
-                    confirm.job.id,
-                    confirm.status,
-                    reason,
-                  );
-                  setConfirm(null);
-                  toast(`Listing ${confirm.status.toLowerCase()}`);
-                } catch (e) {
-                  toast(
-                    e instanceof Error
-                      ? e.message
-                      : "Could not moderate listing",
-                    "error",
-                  );
-                }
-              }}
-            >
-              Xác nhận quyết định
-            </button>
-          </div>
-        </Modal>
-      )}
-      {preview && (
-        <Modal title="Listing preview" onClose={() => setPreview(null)}>
-          <div className="preview-job">
-            <CompanyMark name={preview.company} />
-            <h2>{preview.title}</h2>
-            <p className="muted">
-              {preview.company} · {preview.location}
+          <div className="space-y-4">
+            <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+              Tin tuyển dụng <b className="text-[var(--color-foreground)]">{confirm.job.title}</b> của{" "}
+              <b className="text-[var(--color-foreground)]">{confirm.job.company}</b> sẽ chuyển sang trạng thái{" "}
+              <b className="text-[var(--color-foreground)]">
+                {confirm.status === "APPROVED" ? "Đã duyệt" : "Đã từ chối"}
+              </b>.
             </p>
-            <span className={`status-pill ${statusClass(preview.moderation)}`}>
-              {preview.moderation}
-            </span>
-            <div className="detail-chips">
-              <span>
-                <Wallet size={14} />
-                {money(preview.salaryMin)} – {money(preview.salaryMax)}
-              </span>
-              <span>
-                <Clock3 size={14} />
-                {preview.type.replace("_", " ")}
-              </span>
-            </div>
-            <h3>Giới thiệu vị trí</h3>
-            <p>{preview.description}</p>
-            <h3>Trách nhiệm công việc</h3>
-            <ul className="detail-list">
-              {preview.responsibilities.map((r) => (
-                <li key={r}>
-                  <CheckCircle2 size={15} />
-                  {r}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="modal-actions">
-            <button
-              className="btn btn-outline"
-              onClick={() => setPreview(null)}
-            >
-              Đóng xem trước
-            </button>
-            {preview.moderation === "PENDING" && (
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setPreview(null);
-                  setConfirm({ job: preview, status: "APPROVED" });
+
+            {confirm.status === "REJECTED" && (
+              <div>
+                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                  Lý do từ chối *
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Nhập lý do để nhà tuyển dụng chỉnh sửa lại..."
+                  className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)]"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--color-border)]">
+              <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
+                Hủy
+              </Button>
+              <Button
+                variant={confirm.status === "APPROVED" ? "primary" : "destructive"}
+                size="sm"
+                onClick={async () => {
+                  if (confirm.status === "REJECTED" && !rejectReason.trim()) {
+                    toast("Vui lòng nhập lý do từ chối", "error");
+                    return;
+                  }
+                  try {
+                    await api.admin.moderate(
+                      confirm.job.id,
+                      confirm.status,
+                      confirm.status === "REJECTED" ? rejectReason.trim() : "",
+                    );
+                    await jobService.load();
+                    setConfirm(null);
+                    toast(
+                      confirm.status === "APPROVED"
+                        ? "Đã duyệt tin tuyển dụng"
+                        : "Đã từ chối tin tuyển dụng",
+                    );
+                  } catch (e) {
+                    toast(
+                      e instanceof Error ? e.message : "Không thể kiểm duyệt tin",
+                      "error",
+                    );
+                  }
                 }}
               >
-                Duyệt tin
-              </button>
-            )}
+                Xác nhận quyết định
+              </Button>
+            </div>
           </div>
         </Modal>
       )}
-    </>
+
+      {preview && (
+        <Modal title="Xem trước tin tuyển dụng" onClose={() => setPreview(null)}>
+          <div className="space-y-4 text-xs">
+            <div className="flex items-start gap-3">
+              <CompanyMark name={preview.company} />
+              <div>
+                <h2 className="text-base font-bold text-[var(--color-foreground)]">
+                  {preview.title}
+                </h2>
+                <p className="text-[var(--color-muted-foreground)] mt-0.5">
+                  {preview.company} · {preview.location}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={
+                  preview.moderation === "APPROVED"
+                    ? "success"
+                    : preview.moderation === "REJECTED"
+                      ? "danger"
+                      : "warning"
+                }
+              >
+                {preview.moderation === "APPROVED"
+                  ? "Đã duyệt"
+                  : preview.moderation === "REJECTED"
+                    ? "Đã từ chối"
+                    : "Chờ duyệt"}
+              </Badge>
+              <Badge variant="info">
+                <Wallet size={12} /> {money(preview.salaryMin)} – {money(preview.salaryMax)}
+              </Badge>
+              <Badge variant="neutral">
+                <Clock3 size={12} /> {jobTypeVi(preview.type)}
+              </Badge>
+            </div>
+
+            <div>
+              <h3 className="font-bold text-[var(--color-foreground)] mb-1">
+                Giới thiệu vị trí
+              </h3>
+              <p className="text-[var(--color-muted-foreground)] leading-relaxed">
+                {preview.description}
+              </p>
+            </div>
+
+            {preview.responsibilities.length > 0 && (
+              <div>
+                <h3 className="font-bold text-[var(--color-foreground)] mb-1">
+                  Trách nhiệm công việc
+                </h3>
+                <ul className="space-y-1 text-[var(--color-muted-foreground)]">
+                  {preview.responsibilities.map((r) => (
+                    <li key={r} className="flex items-start gap-1.5">
+                      <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--color-border)]">
+              <Button variant="outline" size="sm" onClick={() => setPreview(null)}>
+                Đóng xem trước
+              </Button>
+              {preview.moderation === "PENDING" && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setPreview(null);
+                    setRejectReason("");
+                    setConfirm({ job: preview, status: "APPROVED" });
+                  }}
+                >
+                  Duyệt tin
+                </Button>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }
 
@@ -6109,6 +6937,7 @@ function AdminApplications() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -6126,7 +6955,7 @@ function AdminApplications() {
           setLoadError(
             error instanceof Error
               ? error.message
-              : "Không thể tải danh sách đơn ứng tuyển"
+              : "Không thể tải danh sách đơn ứng tuyển",
           );
         }
       } finally {
@@ -6146,120 +6975,173 @@ function AdminApplications() {
       (status === "ALL" || a.status === status) &&
       `${a.jobTitle || ""} ${a.studentName || ""} ${a.studentEmail || ""} ${a.jobCompany || ""}`
         .toLowerCase()
-        .includes(q.toLowerCase())
+        .includes(q.toLowerCase()),
   );
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        eyebrow="PLATFORM ACTIVITY"
-        title="Application overview"
-        subtitle="A platform-wide view of student applications and outcomes."
+        eyebrow="HOẠT ĐỘNG NỀN TẢNG"
+        title="Tổng quan đơn ứng tuyển"
+        subtitle="Theo dõi toàn bộ hồ sơ ứng tuyển của sinh viên trên hệ thống."
       />
-      
-    <div className="application-summary">
-      <div>
-        <span>Tổng đơn ứng tuyển</span>
-        <b>{applications.length}</b>
+
+      {loading && (
+        <div className="p-3.5 rounded-lg bg-white border border-[var(--color-border)] text-xs text-[var(--color-muted-foreground)]">
+          Đang tải danh sách đơn ứng tuyển...
+        </div>
+      )}
+
+      {loadError && (
+        <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+          {loadError}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Tổng đơn ứng tuyển
+          </span>
+          <b className="text-2xl font-extrabold text-[var(--color-foreground)] mt-1 block">
+            {applications.length}
+          </b>
+        </div>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đang chờ duyệt
+          </span>
+          <b className="text-2xl font-extrabold text-amber-700 mt-1 block">
+            {applications.filter((a) => a.status === "PENDING").length}
+          </b>
+        </div>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã chấp nhận
+          </span>
+          <b className="text-2xl font-extrabold text-emerald-700 mt-1 block">
+            {applications.filter((a) => a.status === "ACCEPTED").length}
+          </b>
+        </div>
+        <div className="bg-white border border-[var(--color-border)] rounded-xl p-4">
+          <span className="text-xs font-medium text-[var(--color-muted-foreground)] block">
+            Đã từ chối
+          </span>
+          <b className="text-2xl font-extrabold text-rose-700 mt-1 block">
+            {applications.filter((a) => a.status === "REJECTED").length}
+          </b>
+        </div>
       </div>
 
-      <div>
-        <span>Đang chờ</span>
-        <b>
-          {applications.filter((a) => a.status === "PENDING").length}
-        </b>
-      </div>
-
-      <div>
-        <span>Đã chấp nhận</span>
-        <b>
-          {applications.filter((a) => a.status === "ACCEPTED").length}
-        </b>
-      </div>
-
-      <div>
-        <span>Đã từ chối</span>
-        <b>
-          {applications.filter((a) => a.status === "REJECTED").length}
-        </b>
-      </div>
-</div>
-
-      <section className="panel">
-        <div className="table-toolbar">
-          <label className="table-search">
-            <Search size={16} />
+      <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-[var(--color-border)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--color-background)]/40">
+          <div className="relative flex-1 max-w-sm">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]"
+            />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tìm theo sinh viên, công việc hoặc công ty..."
+              className="w-full bg-white border border-[var(--color-border)] rounded-lg pl-9 pr-3 py-2 text-xs text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
             />
-          </label>
-          <label className="sort-select">
-            <ListFilter size={15} />
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          </div>
+
+          <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)] self-start sm:self-center">
+            <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="bg-transparent outline-none cursor-pointer font-medium"
+            >
               <option value="ALL">Tất cả trạng thái</option>
-              <option value="PENDING">Đang chờ</option>
+              <option value="PENDING">Đang chờ duyệt</option>
               <option value="ACCEPTED">Đã chấp nhận</option>
               <option value="REJECTED">Đã từ chối</option>
             </select>
           </label>
         </div>
-        <div className="table-scroll">
-          <table className="data-table">
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr>
-                <th>Sinh viên</th>
-                <th>Công việc & nhà tuyển dụng</th>
-                <th>Ngày ứng tuyển</th>
-                <th>Trạng thái</th>
-                <th>Chi tiết</th>
+              <tr className="bg-[var(--color-background)]/60 border-b border-[var(--color-border)] text-[var(--color-muted-foreground)] uppercase text-[11px] font-bold tracking-wider">
+                <th className="py-3 px-4">Sinh viên</th>
+                <th className="py-3 px-4">Công việc & nhà tuyển dụng</th>
+                <th className="py-3 px-4">Ngày ứng tuyển</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4 text-right">Chi tiết</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[var(--color-border)]">
               {apps.map((a) => {
                 const u = store.users().find((x) => x.id === a.studentId);
                 const j = jobService.byId(a.jobId);
+                const studentName = a.studentName || u?.name || "Sinh viên";
+                const studentEmail = a.studentEmail || u?.email || "";
+                const jobTitle = a.jobTitle || j?.title || "Vị trí tuyển dụng";
+                const jobCompany = a.jobCompany || j?.company || "";
+
                 return (
-                  <tr key={a.id}>
-                    <td>
-                      <div className="table-job">
-                        <span className="avatar small">
-                          {u?.name
+                  <tr key={a.id} className="hover:bg-[var(--color-background)]/40 transition-colors duration-150">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center font-bold text-[11px] shrink-0">
+                          {studentName
                             .split(" ")
                             .map((x) => x[0])
                             .slice(0, 2)
                             .join("")}
                         </span>
-                        <span>
-                          <b>{u?.name || "Student"}</b>
-                          <small>{u?.email}</small>
-                        </span>
+                        <div>
+                          <b className="font-bold text-[var(--color-foreground)] block">
+                            {studentName}
+                          </b>
+                          <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                            {studentEmail}
+                          </small>
+                        </div>
                       </div>
                     </td>
-                    <td>
-                      <span className="table-cell-title">
-                        <b>{j?.title}</b>
-                        <small>{j?.company}</small>
-                      </span>
+                    <td className="py-3.5 px-4">
+                      <div>
+                        <b className="font-bold text-[var(--color-foreground)] block">
+                          {jobTitle}
+                        </b>
+                        <small className="text-[11px] text-[var(--color-muted-foreground)]">
+                          {jobCompany}
+                        </small>
+                      </div>
                     </td>
-                    <td>{date(a.appliedAt)}</td>
-                    <td>
-                      <span className={`status-pill ${statusClass(a.status)}`}>
-                        {a.status}
-                      </span>
+                    <td className="py-3.5 px-4 text-[var(--color-muted-foreground)]">
+                      {date(a.appliedAt)}
                     </td>
-                    <td>
-                      <button
-                        className="table-action"
-                        onClick={() =>
-                          window.alert(
-                            `Application message:\n\n${a.message || "Không có lời nhắn."}\n\nCV: ${a.cvUrl || "Chưa cung cấp"}`,
-                          )
+                    <td className="py-3.5 px-4">
+                      <Badge
+                        variant={
+                          a.status === "ACCEPTED"
+                            ? "success"
+                            : a.status === "REJECTED"
+                              ? "danger"
+                              : "warning"
                         }
+                      >
+                        {a.status === "ACCEPTED"
+                          ? "Đã chấp nhận"
+                          : a.status === "REJECTED"
+                            ? "Đã từ chối"
+                            : "Đang chờ duyệt"}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        type="button"
+                        className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
+                        onClick={() => setSelectedApp(a)}
                         aria-label="Xem tóm tắt đơn ứng tuyển"
                       >
-                        <Eye size={15} />
+                        <Eye size={14} />
                       </button>
                     </td>
                   </tr>
@@ -6268,14 +7150,67 @@ function AdminApplications() {
             </tbody>
           </table>
         </div>
+
         {!apps.length && (
-          <EmptyPage
-            title="No applications found"
-            text="Try changing tương lai search or status filter."
-          />
+          <div className="p-8">
+            <EmptyPage
+              title="Không tìm thấy đơn ứng tuyển"
+              text="Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái."
+            />
+          </div>
         )}
       </section>
-    </>
+
+      {selectedApp && (
+        <Modal
+          title="Chi tiết đơn ứng tuyển"
+          onClose={() => setSelectedApp(null)}
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)]">
+              <div>
+                <span className="text-[11px] font-semibold text-[var(--color-muted-foreground)] block">
+                  Ứng viên
+                </span>
+                <b className="text-[var(--color-foreground)]">
+                  {selectedApp.studentName || "Sinh viên"}
+                </b>
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-[var(--color-muted-foreground)] block">
+                  Vị trí & Công ty
+                </span>
+                <b className="text-[var(--color-foreground)]">
+                  {selectedApp.jobTitle || "Vị trí tuyển dụng"}
+                  {selectedApp.jobCompany ? ` · ${selectedApp.jobCompany}` : ""}
+                </b>
+              </div>
+            </div>
+            <div>
+              <span className="font-bold text-[var(--color-foreground)] block mb-1">
+                Thư giới thiệu bản thân:
+              </span>
+              <p className="p-3 rounded-lg bg-white border border-[var(--color-border)] text-[var(--color-muted-foreground)] whitespace-pre-line leading-relaxed">
+                {selectedApp.message || "Ứng viên không để lại lời nhắn."}
+              </p>
+            </div>
+            <div>
+              <span className="font-bold text-[var(--color-foreground)] block mb-1">
+                Liên kết CV:
+              </span>
+              <p className="text-[var(--color-muted-foreground)] break-all">
+                {selectedApp.cvUrl || "Chưa cung cấp"}
+              </p>
+            </div>
+            <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
+              <Button variant="outline" size="sm" onClick={() => setSelectedApp(null)}>
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }
 function Modal({
@@ -6287,40 +7222,10 @@ function Modal({
   children: ReactNode;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [onClose]);
   return (
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <section
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        <div className="modal-head">
-          <h2>{title}</h2>
-          <button
-            className="icon-btn"
-            onClick={onClose}
-            aria-label="Đóng hộp thoại"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="modal-body">{children}</div>
-      </section>
-    </div>
+    <SharedModal title={title} onClose={onClose}>
+      {children}
+    </SharedModal>
   );
 }
 function EmptyPage({
@@ -6333,12 +7238,16 @@ function EmptyPage({
   action?: ReactNode;
 }) {
   return (
-    <div className="empty-state">
-      <span className="empty-icon">
-        <Compass size={25} />
+    <div className="py-12 px-4 flex flex-col items-center justify-center text-center">
+      <span className="w-12 h-12 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center mb-3">
+        <Compass size={22} />
       </span>
-      <h3>{title}</h3>
-      <p>{text}</p>
+      <h3 className="text-base font-bold text-[var(--color-foreground)] mb-1">
+        {title}
+      </h3>
+      <p className="text-xs text-[var(--color-muted-foreground)] max-w-sm mb-4">
+        {text}
+      </p>
       {action}
     </div>
   );
@@ -6346,57 +7255,81 @@ function EmptyPage({
 function Unauthorized() {
   const { user } = useContext(AuthContext);
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
       <PublicNav />
-      <div className="center-page">
-        <span className="error-code">403</span>
-        <span className="empty-icon">
-          <ShieldCheck size={27} />
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 text-center">
+        <span className="text-5xl font-extrabold text-[var(--color-primary)]/20 mb-2">
+          403
         </span>
-        <h1>Bạn không có quyền truy cập</h1>
-        <p className="muted">
+        <span className="w-14 h-14 rounded-2xl bg-white border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center mb-4">
+          <ShieldCheck size={28} />
+        </span>
+        <h1 className="text-2xl font-bold text-[var(--color-foreground)] mb-2">
+          Bạn không có quyền truy cập
+        </h1>
+        <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] max-w-md mb-6">
           {user
-            ? `Your ${roleLabel(user.role).toLowerCase()} account doesn't have permission to view this page.`
-            : "Please sign in with the right account to continue."}
+            ? `Tài khoản ${roleLabel(user.role).toLowerCase()} của bạn không có quyền xem trang này.`
+            : "Vui lòng đăng nhập đúng tài khoản để tiếp tục."}
         </p>
-        <div className="center-actions">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
-            className="btn btn-primary"
-            to={user ? `/${user.role.toLowerCase()}/dashboard` : "/login"}
+            to={
+              user
+                ? user.role === "STUDENT"
+                  ? "/"
+                  : `/${user.role.toLowerCase()}/dashboard`
+                : "/login"
+            }
           >
-            {user ? "Go to tương lai dashboard" : "Sign in"} <ArrowRight size={16} />
+            <Button variant="primary" size="md">
+              {user ? (user.role === "STUDENT" ? "Về trang chủ" : "Về trang tổng quan") : "Đăng nhập"}{" "}
+              <ArrowRight size={15} />
+            </Button>
           </Link>
-          <Link className="btn btn-outline" to="/jobs">
-            Tìm việc làm
+          <Link to="/jobs">
+            <Button variant="outline" size="md">
+              Tìm việc làm
+            </Button>
           </Link>
         </div>
-      </div>
+      </main>
       <Footer />
-    </>
+    </div>
   );
 }
 function NotFound() {
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
       <PublicNav />
-      <div className="center-page">
-        <span className="error-code">404</span>
-        <span className="empty-icon">
-          <Search size={27} />
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 text-center">
+        <span className="text-5xl font-extrabold text-[var(--color-primary)]/20 mb-2">
+          404
         </span>
-        <h1>Không tìm thấy trang</h1>
-        <p className="muted">Trang bạn tìm kiếm không tồn tại.</p>
-        <div className="center-actions">
-          <Link className="btn btn-primary" to="/">
-            Về trang chủ <ArrowRight size={16} />
+        <span className="w-14 h-14 rounded-2xl bg-white border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center mb-4">
+          <Search size={28} />
+        </span>
+        <h1 className="text-2xl font-bold text-[var(--color-foreground)] mb-2">
+          Không tìm thấy trang
+        </h1>
+        <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] max-w-md mb-6">
+          Trang bạn tìm kiếm không tồn tại hoặc đã bị di chuyển.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link to="/">
+            <Button variant="primary" size="md">
+              Về trang chủ <ArrowRight size={15} />
+            </Button>
           </Link>
-          <Link className="btn btn-outline" to="/jobs">
-            Tìm việc làm
+          <Link to="/jobs">
+            <Button variant="outline" size="md">
+              Tìm việc làm
+            </Button>
           </Link>
         </div>
-      </div>
+      </main>
       <Footer />
-    </>
+    </div>
   );
 }
 export default App;

@@ -141,6 +141,13 @@ export const api = {
     byId: (id: string | number) => apiRequest<{ data: Record<string, any> }>(`/jobs/${id}`),
     create: (data: Record<string, unknown>) => apiRequest<{ message: string; jobId: number; moderation_status: string }>('/jobs', { method: 'POST', body: JSON.stringify(data) }, true),
     update: (id: string | number, data: Record<string, unknown>) => apiRequest<{ message: string }>(`/jobs/${id}`, { method: 'PUT', body: JSON.stringify(data) }, true),
+    remove: (id: string | number) => apiRequest<{ message: string }>(`/jobs/${id}`, { method: 'DELETE' }, true),
+  },
+  reviews: {
+    list: (jobId?: string | number) =>
+      apiRequest<{ data: Record<string, any>[] }>(jobId ? `/reviews?jobId=${jobId}` : '/reviews'),
+    create: (data: { job_id: number; rating: number; comment: string }) =>
+      apiRequest<{ message: string; data: Record<string, any> }>('/reviews', { method: 'POST', body: JSON.stringify(data) }, true),
   },
   
 applications: {
