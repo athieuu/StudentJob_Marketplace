@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { Select } from '../components/ui/Input';
 import { cvService } from '../services/cv';
 import { cvParserService } from '../services/cvParser';
 import { aiService } from '../services/ai';
@@ -626,15 +627,14 @@ export default function CVBuilderPage() {
                     <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
                       Giao diện mẫu
                     </label>
-                    <select
-                      className="w-full bg-white text-xs text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-ring)] transition-colors duration-150 cursor-pointer"
+                    <Select
                       value={form.template}
                       onChange={(e) => setForm((f) => ({ ...f, template: e.target.value }))}
                     >
                       <option value="modern">Hiện đại (Modern)</option>
                       <option value="classic">Cổ điển (Classic)</option>
                       <option value="minimal">Tối giản (Minimal)</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
               </div>

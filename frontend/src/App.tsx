@@ -96,7 +96,7 @@ import CVBuilderPage from "./pages/CVBuilderPage";
 import { cvParserService } from "./services/cvParser";
 import { cvService } from "./services/cv";
 import { aiService } from "./services/ai";
-import type { CVAnalyzeResponse, JobFitResult, RecommendedJobItem } from "./services/ai";
+import type { CVAnalyzeResponse, CVHistoryItem, JobFitResult, RecommendedJobItem } from "./services/ai";
 import { chatApi } from "./services/chat";
 
 const AuthContext = createContext<{
@@ -868,8 +868,7 @@ function Jobs() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-foreground)] mb-2.5">
                     Lĩnh vực nghề nghiệp
                   </label>
-                  <select
-                    className="w-full bg-white text-xs text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-ring)] transition-colors duration-150 cursor-pointer"
+                  <SharedSelect
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                   >
@@ -887,7 +886,7 @@ function Jobs() {
                         {c}
                       </option>
                     ))}
-                  </select>
+                  </SharedSelect>
                 </div>
 
                 {/* Filter 3: Salary Range (Select) */}
@@ -895,8 +894,7 @@ function Jobs() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-foreground)] mb-2.5">
                     Mức lương
                   </label>
-                  <select
-                    className="w-full bg-white text-xs text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-ring)] transition-colors duration-150 cursor-pointer"
+                  <SharedSelect
                     value={salary}
                     onChange={(e) => setSalary(e.target.value)}
                   >
@@ -904,7 +902,7 @@ function Jobs() {
                     <option value="under5">Dưới 5 triệu</option>
                     <option value="5to8">5 – 8 triệu</option>
                     <option value="over8">Trên 8 triệu</option>
-                  </select>
+                  </SharedSelect>
                 </div>
 
                 {/* Tip note */}
@@ -934,19 +932,20 @@ function Jobs() {
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  <span className="text-xs text-[var(--color-muted-foreground)] font-medium flex items-center gap-1.5">
+                  <span className="text-xs text-[var(--color-muted-foreground)] font-medium flex items-center gap-1.5 shrink-0">
                     <ArrowDownUp size={14} /> Sắp xếp:
                   </span>
-                  <select
-                    aria-label="Sắp xếp công việc"
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
-                    className="bg-white text-xs font-medium text-[var(--color-foreground)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 outline-none focus:border-[var(--color-primary)] cursor-pointer"
-                  >
-                    <option value="newest">Mới nhất</option>
-                    <option value="salary">Lương cao nhất</option>
-                    <option value="relevance">Tên công việc A–Z</option>
-                  </select>
+                  <div className="w-44">
+                    <SharedSelect
+                      aria-label="Sắp xếp công việc"
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value)}
+                    >
+                      <option value="newest">Mới nhất</option>
+                      <option value="salary">Lương cao nhất</option>
+                      <option value="relevance">Tên công việc A–Z</option>
+                    </SharedSelect>
+                  </div>
                 </div>
               </div>
 
@@ -2339,6 +2338,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
   const { user, setUser } = useContext(AuthContext);
   const [mobile, setMobile] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
   const links =
     role === "STUDENT"
@@ -2357,7 +2357,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
         ? [
             ["Tổng quan", "/employer/dashboard", LayoutDashboard],
             ["Tin tuyển dụng", "/employer/jobs", BriefcaseBusiness],
-            ["Ứng viên", "/employer/jobs", Users],
+            ["Đăng tin mới", "/employer/jobs/new", Plus],
             ["Hồ sơ công ty", "/employer/profile", UserRound],
             ["Tin nhắn", "/employer/messages", Mail],
           ]
@@ -2503,6 +2503,14 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
             </a>
           </div>
 
+          <Link
+            to="/"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150"
+          >
+            <Globe size={16} className="text-[var(--color-primary)]" />
+            <span>Xem trang tuyển dụng</span>
+          </Link>
+
           <button
             type="button"
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
@@ -2622,13 +2630,77 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
                 </div>
               )}
             </div>
-            <span className="w-8 h-8 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-xs font-bold shrink-0">
-              {user?.name
-                .split(" ")
-                .map((x) => x[0])
-                .slice(0, 2)
-                .join("")}
-            </span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileOpen((p) => !p)}
+                className="inline-flex items-center gap-2 px-2 py-1 rounded-xl border border-[var(--color-border)] bg-white hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
+                aria-label="Menu tài khoản"
+              >
+                <span className="w-7 h-7 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                  {user?.name
+                    .split(" ")
+                    .map((x) => x[0])
+                    .slice(0, 2)
+                    .join("")}
+                </span>
+                <span className="hidden sm:inline text-xs font-semibold text-[var(--color-foreground)]">
+                  {user?.name.split(" ")[0]}
+                </span>
+                <ChevronDown size={13} className="text-[var(--color-muted-foreground)]" />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-[var(--color-border)] rounded-xl shadow-lg py-2 z-50">
+                  <div className="px-3.5 py-2 border-b border-[var(--color-border)] mb-1">
+                    <b className="text-xs font-bold text-[var(--color-foreground)] block truncate">
+                      {user?.name}
+                    </b>
+                    <small className="text-[11px] text-[var(--color-muted-foreground)] block truncate">
+                      {user?.email}
+                    </small>
+                  </div>
+                  {role === "EMPLOYER" && (
+                    <>
+                      <Link
+                        to="/employer/profile"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)]"
+                      >
+                        <Building2 size={14} /> Hồ sơ công ty
+                      </Link>
+                      <Link
+                        to="/employer/messages"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)]"
+                      >
+                        <Mail size={14} /> Tin nhắn
+                      </Link>
+                    </>
+                  )}
+                  <Link
+                    to="/"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)]"
+                  >
+                    <Globe size={14} /> Trang tuyển dụng
+                  </Link>
+                  <div className="my-1 border-t border-[var(--color-border)]" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      authService.logout();
+                      setUser(null);
+                      navigate("/");
+                    }}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
+                  >
+                    <LogOut size={14} /> Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -2878,21 +2950,88 @@ function CVAnalysis() {
   const toast = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [savingCv, setSavingCv] = useState(false);
+  const [targetJob, setTargetJob] = useState("");
   const [result, setResult] = useState<CVAnalyzeResponse | null>(null);
   const [error, setError] = useState("");
+  const [history, setHistory] = useState<CVHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(null);
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await aiService.getCvHistory();
+      setHistory(res.data || []);
+    } catch {
+      // Ignore silent load errors
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadHistory();
+  }, []);
 
   const run = async () => {
     if (!file) return;
     setBusy(true);
     setError("");
     setResult(null);
+    setSelectedHistoryId(null);
     try {
-      setResult(await aiService.analyzeCv(file));
+      const res = await aiService.analyzeCv(file, targetJob);
+      setResult(res);
+      if (res.historyId) setSelectedHistoryId(res.historyId);
+      void loadHistory();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thể phân tích CV.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const regenerateFeedback = async () => {
+    if (!result) return;
+    setFeedbackBusy(true);
+    try {
+      const res = await aiService.feedbackCv(result.data, targetJob.trim() || undefined);
+      setResult((prev) => (prev ? { ...prev, feedback: res.data } : prev));
+      toast("AI đã tạo nhận xét & gợi ý mới cho CV!", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Không thể tạo nhận xét AI.", "error");
+    } finally {
+      setFeedbackBusy(false);
+    }
+  };
+
+  const viewHistoryItem = (item: CVHistoryItem) => {
+    setSelectedHistoryId(item.id);
+    setError("");
+    setResult({
+      historyId: item.id,
+      message: "Đang xem lại từ lịch sử",
+      aiUsed: item.aiUsed,
+      model: item.model,
+      data: item.data,
+      feedback: item.feedback,
+      warnings: item.warnings || [],
+    });
+  };
+
+  const removeHistoryItem = async (id: number) => {
+    try {
+      await aiService.deleteCvHistory(id);
+      setHistory((prev) => prev.filter((item) => item.id !== id));
+      if (selectedHistoryId === id) {
+        setSelectedHistoryId(null);
+        setResult(null);
+      }
+      toast("Đã xóa mục lịch sử");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Không thể xóa mục lịch sử", "error");
     }
   };
 
@@ -2966,6 +3105,19 @@ function CVAnalysis() {
               }}
             />
           </label>
+
+          <div>
+            <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+              Vị trí muốn ứng tuyển (tùy chọn — giúp AI gợi ý sát hơn)
+            </label>
+            <input
+              type="text"
+              value={targetJob}
+              onChange={(e) => setTargetJob(e.target.value)}
+              placeholder="VD: Thực tập sinh AI, Frontend ReactJS, Data Analyst..."
+              className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
+            />
+          </div>
 
           <Button
             variant="primary"
@@ -3067,42 +3219,111 @@ function CVAnalysis() {
               </div>
 
               {/* AI Feedback Section */}
-              {result.feedback && (
+              {result.feedback ? (
                 <div className="p-4 bg-sky-50/70 border border-sky-200 rounded-xl space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={16} className="text-[var(--color-primary)] shrink-0" />
-                    <h3 className="text-xs font-bold text-[var(--color-foreground)] uppercase tracking-wider">
-                      Nhận xét & Đề xuất từ AI
-                    </h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={16} className="text-[var(--color-primary)] shrink-0" />
+                      <h3 className="text-xs font-bold text-[var(--color-foreground)] uppercase tracking-wider">
+                        Nhận xét & Đề xuất từ AI
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={feedbackBusy}
+                      onClick={() => void regenerateFeedback()}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-primary)] hover:underline disabled:opacity-50 cursor-pointer"
+                    >
+                      <RefreshCw size={11} className={feedbackBusy ? "animate-spin" : ""} />
+                      {feedbackBusy ? "Đang đánh giá..." : "Đánh giá lại"}
+                    </button>
                   </div>
-                  <p className="text-xs text-[var(--color-foreground)] leading-relaxed font-medium">
-                    {result.feedback.overall}
-                  </p>
+                  {/* Overall Assessment */}
+                  <div className="p-3.5 bg-white border border-sky-100 rounded-lg space-y-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-primary)] block">
+                      Đánh giá tổng quan
+                    </span>
+                    <p className="text-xs text-[var(--color-foreground)] leading-relaxed">
+                      {result.feedback.overall}
+                    </p>
+                  </div>
+
+                  {/* Grouped Feedback & Suggestions */}
                   {result.feedback.items?.length > 0 && (
-                    <div className="space-y-2">
-                      {result.feedback.items.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 bg-white border border-[var(--color-border)] rounded-lg flex items-start gap-2.5 text-xs"
-                        >
-                          <Badge
-                            variant={
-                              item.severity === "high"
-                                ? "danger"
-                                : item.severity === "medium"
-                                  ? "warning"
-                                  : "info"
-                            }
-                          >
-                            {areaLabels[item.area] || item.area}
-                          </Badge>
-                          <span className="text-[var(--color-foreground)] leading-relaxed">
-                            {item.tip}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="space-y-3">
+                      {(
+                        [
+                          {
+                            severity: "high",
+                            heading: "Cần ưu tiên cải thiện ngay",
+                            borderCls: "border-l-4 border-l-rose-500",
+                            badgeVariant: "danger" as const,
+                          },
+                          {
+                            severity: "medium",
+                            heading: "Nên điều chỉnh thêm",
+                            borderCls: "border-l-4 border-l-amber-500",
+                            badgeVariant: "warning" as const,
+                          },
+                          {
+                            severity: "low",
+                            heading: "Gợi ý tối ưu",
+                            borderCls: "border-l-4 border-l-sky-500",
+                            badgeVariant: "info" as const,
+                          },
+                        ] as const
+                      ).map((group) => {
+                        const groupItems = result.feedback!.items.filter(
+                          (it) => it.severity === group.severity,
+                        );
+                        if (!groupItems.length) return null;
+                        return (
+                          <div key={group.severity} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-[var(--color-muted-foreground)] uppercase tracking-wider">
+                                {group.heading} ({groupItems.length})
+                              </span>
+                            </div>
+                            <div className="space-y-2">
+                              {groupItems.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`p-3 bg-white border border-[var(--color-border)] ${group.borderCls} rounded-lg space-y-1.5 text-xs`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={group.badgeVariant} className="whitespace-nowrap">
+                                      {areaLabels[item.area] || item.area}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-[var(--color-foreground)] leading-relaxed">
+                                    {item.tip}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
+                </div>
+              ) : (
+                <div className="p-4 bg-sky-50/70 border border-sky-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="text-xs text-[var(--color-foreground)]">
+                    <b className="block font-bold">Chưa có nhận xét chi tiết từ AI</b>
+                    <span className="text-[var(--color-muted-foreground)]">
+                      Nhấn nút bên cạnh để AI chấm điểm và đưa ra gợi ý cải thiện CV này.
+                    </span>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={feedbackBusy}
+                    onClick={() => void regenerateFeedback()}
+                  >
+                    <Sparkles size={13} />
+                    {feedbackBusy ? "Đang phân tích..." : "AI Đánh giá & Gợi ý"}
+                  </Button>
                 </div>
               )}
 
@@ -3110,9 +3331,13 @@ function CVAnalysis() {
                 <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 space-y-1">
                   <strong className="block font-bold">Lưu ý kiểm tra thông tin:</strong>
                   <ul className="list-disc pl-4 space-y-0.5">
-                    {result.warnings.map((w, i) => (
-                      <li key={i}>{w}</li>
-                    ))}
+                    {result.warnings.map((w, i) => {
+                      const m = w.match(/^dropped_ungrounded:(\d+)$/);
+                      const text = m
+                        ? `Đã tự động lọc bỏ ${m[1]} thông tin không tìm thấy trực tiếp trong văn bản CV gốc để đảm bảo độ chính xác.`
+                        : w;
+                      return <li key={i}>{text}</li>;
+                    })}
                   </ul>
                 </div>
               ) : null}
@@ -3140,12 +3365,102 @@ function CVAnalysis() {
                 <FileText size={22} />
               </div>
               <p className="text-xs text-[var(--color-muted-foreground)] max-w-xs leading-relaxed">
-                Tải lên file CV ở khung bên trái và bấm <strong>Bắt đầu phân tích bằng AI</strong> để xem cấu trúc và nhận xét chi tiết tại đây.
+                Tải lên file CV ở khung bên trái và bấm <strong>Bắt đầu phân tích bằng AI</strong> hoặc chọn một mục trong <strong>Lịch sử nhận xét CV</strong> bên dưới.
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* History Panel */}
+      <section className="mt-6 bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center shrink-0">
+              <Clock3 size={16} />
+            </span>
+            <div>
+              <h2 className="text-base font-bold text-[var(--color-foreground)]">
+                Lịch sử phân tích & nhận xét CV
+              </h2>
+              <p className="text-xs text-[var(--color-muted-foreground)]">
+                Các lần đánh giá CV trước đây được lưu trong 90 ngày để bạn dễ dàng xem lại.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => void loadHistory()} disabled={historyLoading}>
+            <RefreshCw size={13} className={historyLoading ? "animate-spin" : ""} /> Tải lại
+          </Button>
+        </div>
+
+        {historyLoading ? (
+          <p className="text-xs text-[var(--color-muted-foreground)] py-4">
+            Đang tải lịch sử nhận xét...
+          </p>
+        ) : history.length === 0 ? (
+          <p className="text-xs text-[var(--color-muted-foreground)] py-6 text-center">
+            Chưa có lịch sử phân tích nào. Hãy tải lên CV ở trên để bắt đầu!
+          </p>
+        ) : (
+          <div className="divide-y divide-[var(--color-border)]">
+            {history.map((item) => {
+              const isSelected = selectedHistoryId === item.id;
+              return (
+                <div
+                  key={item.id}
+                  className={`py-3.5 px-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-150 ${
+                    isSelected ? "bg-sky-50/70" : "hover:bg-[var(--color-background)]/50"
+                  }`}
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="w-9 h-9 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] flex items-center justify-center shrink-0">
+                      <FileText size={17} />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <b className="text-xs font-bold text-[var(--color-foreground)] truncate">
+                          {item.fileName}
+                        </b>
+                        <Badge variant={item.aiUsed ? "info" : "neutral"}>
+                          {item.aiUsed ? "Phân tích AI" : "Cơ bản"}
+                        </Badge>
+                        {item.feedback && (
+                          <Badge variant="success">Có nhận xét</Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[var(--color-muted-foreground)] mt-0.5 line-clamp-1">
+                        {item.feedback?.overall ||
+                          `${item.data?.skills?.length || 0} kỹ năng · ${new Date(item.createdAt).toLocaleString("vi-VN")}`}
+                      </p>
+                      <span className="text-[10px] text-[var(--color-muted-foreground)]">
+                        {new Date(item.createdAt).toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <Button
+                      variant={isSelected ? "primary" : "outline"}
+                      size="sm"
+                      onClick={() => viewHistoryItem(item)}
+                    >
+                      <Eye size={13} /> {isSelected ? "Đang xem" : "Xem lại"}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => void removeHistoryItem(item.id)}
+                      className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
+                      title="Xóa khỏi lịch sử"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </>
   );
 }
@@ -4073,6 +4388,8 @@ function StudentApplications() {
 }
 
 function ApplicationDetails({ role }: { role: "STUDENT" | "EMPLOYER" }) {
+  const navigate = useNavigate();
+  const toast = useToast();
   const { id = "" } = useParams();
   const { user } = useContext(AuthContext);
   const app = applicationService.all().find((a) => a.id === id);
@@ -4319,6 +4636,27 @@ function ApplicationDetails({ role }: { role: "STUDENT" | "EMPLOYER" }) {
                   <span>{app.studentPhone}</span>
                 </div>
               )}
+
+              <div className="pt-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  fullWidth
+                  onClick={async () => {
+                    try {
+                      const res = await chatApi.createWithStudent(Number(app.studentId));
+                      navigate(`/employer/messages?conversation=${res.conversationId}`);
+                    } catch (err) {
+                      toast(
+                        err instanceof Error ? err.message : "Không thể mở cuộc trò chuyện.",
+                        "error",
+                      );
+                    }
+                  }}
+                >
+                  <Mail size={14} /> Nhắn tin với ứng viên
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -4629,15 +4967,18 @@ function EmployerDashboard() {
     .all()
     .filter((a) => jobs.some((j) => j.id === a.jobId));
 
-  const weekBars = [
-    { d: "T2", n: 3 },
-    { d: "T3", n: 5 },
-    { d: "T4", n: 2 },
-    { d: "T5", n: 7 },
-    { d: "T6", n: 4 },
-    { d: "T7", n: 2 },
-    { d: "CN", n: 6 },
-  ];
+  const weekBars = useMemo(() => {
+    const dayLabels = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+    const result: Array<{ d: string; n: number }> = [];
+    for (let offset = 6; offset >= 0; offset--) {
+      const dt = new Date();
+      dt.setDate(dt.getDate() - offset);
+      const iso = dt.toISOString().slice(0, 10);
+      const count = apps.filter((a) => String(a.appliedAt).slice(0, 10) === iso).length;
+      result.push({ d: dayLabels[dt.getDay()], n: count });
+    }
+    return result;
+  }, [apps]);
 
   const statusItems = [
     {
@@ -4961,30 +5302,28 @@ function EmployerJobs() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
-              <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
-              <select
+            <div className="w-44">
+              <SharedSelect
+                icon={<ListFilter size={14} />}
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="bg-transparent outline-none cursor-pointer font-medium"
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="OPEN">Đang mở</option>
                 <option value="CLOSED">Đã đóng</option>
-              </select>
-            </label>
+              </SharedSelect>
+            </div>
 
-            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
-              <ArrowDownUp size={14} className="text-[var(--color-muted-foreground)]" />
-              <select
+            <div className="w-44">
+              <SharedSelect
+                icon={<ArrowDownUp size={14} />}
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="bg-transparent outline-none cursor-pointer font-medium"
               >
                 <option value="newest">Mới nhất trước</option>
                 <option value="salary">Lương cao nhất</option>
-              </select>
-            </label>
+              </SharedSelect>
+            </div>
           </div>
         </div>
 
@@ -5307,8 +5646,7 @@ function JobEditor() {
                 />
               </Field>
               <Field label="Ngành nghề *">
-                <select
-                  className={fieldCls}
+                <SharedSelect
                   value={form.category}
                   onChange={(e) => change("category", e.target.value)}
                 >
@@ -5324,18 +5662,17 @@ function JobEditor() {
                   ].map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
-                </select>
+                </SharedSelect>
               </Field>
               <Field label="Hình thức làm việc *">
-                <select
-                  className={fieldCls}
+                <SharedSelect
                   value={form.type}
                   onChange={(e) => change("type", e.target.value)}
                 >
                   <option value="PART_TIME">Bán thời gian</option>
                   <option value="FULL_TIME">Toàn thời gian</option>
                   <option value="FREELANCE">Làm tự do</option>
-                </select>
+                </SharedSelect>
               </Field>
               <Field label="Lương tối thiểu (VNĐ) *">
                 <input
@@ -5367,15 +5704,14 @@ function JobEditor() {
                 />
               </Field>
               <Field label="Phương thức làm việc">
-                <select
-                  className={fieldCls}
+                <SharedSelect
                   value={form.arrangement}
                   onChange={(e) => change("arrangement", e.target.value)}
                 >
                   <option value="On-site">Tại văn phòng</option>
                   <option value="Hybrid">Kết hợp</option>
                   <option value="Remote">Làm từ xa</option>
-                </select>
+                </SharedSelect>
               </Field>
               <Field label="Hạn chót ứng tuyển *">
                 <input
@@ -5387,14 +5723,13 @@ function JobEditor() {
                 />
               </Field>
               <Field label="Trạng thái tin">
-                <select
-                  className={fieldCls}
+                <SharedSelect
                   value={form.status}
                   onChange={(e) => change("status", e.target.value)}
                 >
                   <option value="OPEN">Đang mở</option>
                   <option value="CLOSED">Đã đóng</option>
-                </select>
+                </SharedSelect>
               </Field>
             </div>
           </section>
@@ -5508,6 +5843,7 @@ function JobEditor() {
   );
 }
 function EmployerApplicants() {
+  const navigate = useNavigate();
   const toast = useToast();
   const { id = "" } = useParams();
   const { user } = useContext(AuthContext);
@@ -5608,19 +5944,18 @@ function EmployerApplicants() {
               Xem hồ sơ, tải CV và cập nhật trạng thái ứng tuyển.
             </p>
           </div>
-          <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)] self-start sm:self-center">
-            <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
-            <select
+          <div className="w-48 self-start sm:self-center">
+            <SharedSelect
+              icon={<ListFilter size={14} />}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer font-medium"
             >
               <option value="ALL">Tất cả trạng thái</option>
               <option value="PENDING">Đang chờ duyệt</option>
               <option value="ACCEPTED">Đã chấp nhận</option>
               <option value="REJECTED">Đã từ chối</option>
-            </select>
-          </label>
+            </SharedSelect>
+          </div>
         </div>
 
         {apps.length ? (
@@ -5744,6 +6079,24 @@ function EmployerApplicants() {
                             >
                               <X size={15} />
                             </button>
+                            <button
+                              type="button"
+                              className="p-2 rounded-lg border border-sky-200 text-[var(--color-primary)] hover:bg-sky-50 transition-colors duration-150 cursor-pointer"
+                              title="Nhắn tin với ứng viên"
+                              onClick={async () => {
+                                try {
+                                  const res = await chatApi.createWithStudent(Number(a.studentId));
+                                  navigate(`/employer/messages?conversation=${res.conversationId}`);
+                                } catch (err) {
+                                  toast(
+                                    err instanceof Error ? err.message : "Không thể mở cuộc trò chuyện.",
+                                    "error",
+                                  );
+                                }
+                              }}
+                            >
+                              <Mail size={14} />
+                            </button>
                             <Link
                               className="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
                               to={`/employer/applications/${a.id}`}
@@ -5753,7 +6106,25 @@ function EmployerApplicants() {
                             </Link>
                           </div>
                         ) : (
-                          <div className="flex justify-end">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              className="p-2 rounded-lg border border-sky-200 text-[var(--color-primary)] hover:bg-sky-50 transition-colors duration-150 cursor-pointer"
+                              title="Nhắn tin với ứng viên"
+                              onClick={async () => {
+                                try {
+                                  const res = await chatApi.createWithStudent(Number(a.studentId));
+                                  navigate(`/employer/messages?conversation=${res.conversationId}`);
+                                } catch (err) {
+                                  toast(
+                                    err instanceof Error ? err.message : "Không thể mở cuộc trò chuyện.",
+                                    "error",
+                                  );
+                                }
+                              }}
+                            >
+                              <Mail size={14} />
+                            </button>
                             <Link
                               className="inline-flex items-center gap-1 font-bold text-[var(--color-primary)] hover:underline"
                               to={`/employer/applications/${a.id}`}
@@ -6278,32 +6649,30 @@ function AdminUsers() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
-              <Users size={14} className="text-[var(--color-muted-foreground)]" />
-              <select
+            <div className="w-44">
+              <SharedSelect
+                icon={<Users size={14} />}
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="bg-transparent outline-none cursor-pointer font-medium"
               >
                 <option value="ALL">Tất cả vai trò</option>
                 <option value="STUDENT">Sinh viên</option>
                 <option value="EMPLOYER">Nhà tuyển dụng</option>
                 <option value="ADMIN">Quản trị viên</option>
-              </select>
-            </label>
+              </SharedSelect>
+            </div>
 
-            <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)]">
-              <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
-              <select
+            <div className="w-44">
+              <SharedSelect
+                icon={<ListFilter size={14} />}
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="bg-transparent outline-none cursor-pointer font-medium"
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="ACTIVE">Đang hoạt động</option>
                 <option value="BLOCKED">Đã khóa</option>
-              </select>
-            </label>
+              </SharedSelect>
+            </div>
           </div>
         </div>
 
@@ -6644,19 +7013,18 @@ function AdminJobs() {
             />
           </div>
 
-          <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)] self-start sm:self-center">
-            <ShieldCheck size={14} className="text-[var(--color-muted-foreground)]" />
-            <select
+          <div className="w-52 self-start sm:self-center">
+            <SharedSelect
+              icon={<ShieldCheck size={14} />}
               value={moderation}
               onChange={(e) => setModeration(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer font-medium"
             >
               <option value="ALL">Tất cả trạng thái duyệt</option>
               <option value="PENDING">Chờ duyệt</option>
               <option value="APPROVED">Đã duyệt</option>
               <option value="REJECTED">Đã từ chối</option>
-            </select>
-          </label>
+            </SharedSelect>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -7048,19 +7416,18 @@ function AdminApplications() {
             />
           </div>
 
-          <label className="inline-flex items-center gap-1.5 bg-white border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-foreground)] self-start sm:self-center">
-            <ListFilter size={14} className="text-[var(--color-muted-foreground)]" />
-            <select
+          <div className="w-48 self-start sm:self-center">
+            <SharedSelect
+              icon={<ListFilter size={14} />}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer font-medium"
             >
               <option value="ALL">Tất cả trạng thái</option>
               <option value="PENDING">Đang chờ duyệt</option>
               <option value="ACCEPTED">Đã chấp nhận</option>
               <option value="REJECTED">Đã từ chối</option>
-            </select>
-          </label>
+            </SharedSelect>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

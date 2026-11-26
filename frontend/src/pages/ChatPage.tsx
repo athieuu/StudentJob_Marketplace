@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from "react";
-import { Send, RefreshCw } from "lucide-react";
+import { Send, RefreshCw, Search } from "lucide-react";
 import { tokenStore } from "../services/api";
 import { createChatSocket } from "../services/socket";
 import { chatApi } from "../services/chat";
@@ -20,6 +20,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [myId, setMyId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const socketRef = useRef<Socket | null>(null);
   const selectedRef = useRef<number | null>(null);
@@ -103,6 +104,14 @@ export default function ChatPage() {
     });
 
     socket.on("receive_message", (message: ChatMessage) => {
+      setConversations((prev) => {
+        const idx = prev.findIndex((c) => c.id === message.conversation_id);
+        if (idx <= 0) return prev;
+        const copy = [...prev];
+        const [item] = copy.splice(idx, 1);
+        return [item, ...copy];
+      });
+
       if (message.conversation_id !== selectedRef.current) return;
 
       setMessages((prev) => {
@@ -235,6 +244,10 @@ export default function ChatPage() {
     );
   }
 
+  const filteredConversations = conversations.filter((c) =>
+    getConversationName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
+
   return (
     <div className="space-y-4">
       <div>
@@ -251,20 +264,46 @@ export default function ChatPage() {
 
       {error && (
         <div
-          className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium"
+          className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center justify-between gap-2"
           role="alert"
         >
-          {error}
+          <span>{error}</span>
+          {!connected && (
+            <button
+              type="button"
+              onClick={() => {
+                setError("");
+                socketRef.current?.connect();
+              }}
+              className="px-2.5 py-1 rounded bg-white border border-rose-300 text-rose-700 font-semibold hover:bg-rose-100 cursor-pointer shrink-0"
+            >
+              Kết nối lại
+            </button>
+          )}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-12 bg-white border border-[var(--color-border)] rounded-xl overflow-hidden min-h-[520px] md:h-[calc(100vh-14rem)]">
         {/* Danh sách cuộc trò chuyện */}
         <aside className="md:col-span-4 border-b md:border-b-0 md:border-r border-[var(--color-border)] flex flex-col bg-[var(--color-background)]/40">
-          <div className="px-4 py-3.5 border-b border-[var(--color-border)] bg-white flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-foreground)]">
-              Cuộc trò chuyện ({conversations.length})
-            </h3>
+          <div className="p-3.5 border-b border-[var(--color-border)] bg-white space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-foreground)]">
+                Cuộc trò chuyện ({conversations.length})
+              </h3>
+            </div>
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]"
+              />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm theo tên..."
+                className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:border-[var(--color-primary)]"
+              />
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-[var(--color-border)] max-h-60 md:max-h-none">
@@ -272,33 +311,47 @@ export default function ChatPage() {
               <p className="p-4 text-xs text-[var(--color-muted-foreground)]">
                 Đang tải...
               </p>
-            ) : conversations.length === 0 ? (
+            ) : filteredConversations.length === 0 ? (
               <p className="p-6 text-xs text-center text-[var(--color-muted-foreground)]">
-                Chưa có cuộc trò chuyện nào.
+                {searchQuery.trim()
+                  ? "Không tìm thấy cuộc trò chuyện phù hợp."
+                  : "Chưa có cuộc trò chuyện nào."}
               </p>
             ) : (
-              conversations.map((conversation) => {
+              filteredConversations.map((conversation) => {
                 const isActive = selected === conversation.id;
+                const name = getConversationName(conversation);
+                const initials = name
+                  .split(" ")
+                  .map((w) => w[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
                 return (
                   <button
                     key={conversation.id}
                     type="button"
-                    className={`w-full text-left px-4 py-3.5 transition-colors duration-150 cursor-pointer flex items-center justify-between gap-2 ${
+                    className={`w-full text-left px-4 py-3 transition-colors duration-150 cursor-pointer flex items-center justify-between gap-2.5 ${
                       isActive
                         ? "bg-[var(--color-primary)]/10 border-l-4 border-l-[var(--color-primary)]"
                         : "hover:bg-white"
                     }`}
                     onClick={() => setSelected(conversation.id)}
                   >
-                    <strong
-                      className={`text-xs font-bold truncate block ${
-                        isActive
-                          ? "text-[var(--color-primary)]"
-                          : "text-[var(--color-foreground)]"
-                      }`}
-                    >
-                      {getConversationName(conversation)}
-                    </strong>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-[var(--color-primary)] flex items-center justify-center text-[11px] font-bold shrink-0">
+                        {initials || "CH"}
+                      </span>
+                      <strong
+                        className={`text-xs font-bold truncate block ${
+                          isActive
+                            ? "text-[var(--color-primary)]"
+                            : "text-[var(--color-foreground)]"
+                        }`}
+                      >
+                        {name}
+                      </strong>
+                    </div>
 
                     <small className="text-[11px] text-[var(--color-muted-foreground)] shrink-0">
                       {new Date(conversation.created_at).toLocaleDateString("vi-VN")}
@@ -315,22 +368,37 @@ export default function ChatPage() {
           {selected ? (
             <>
               <div className="px-4 py-3.5 border-b border-[var(--color-border)] flex items-center justify-between gap-3">
-                <strong className="text-sm font-bold text-[var(--color-foreground)] truncate">
-                  {selectedConversation
-                    ? getConversationName(selectedConversation)
-                    : `Cuộc trò chuyện #${selected}`}
-                </strong>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-[var(--color-primary)] flex items-center justify-center text-[11px] font-bold shrink-0">
+                    {(selectedConversation
+                      ? getConversationName(selectedConversation)
+                      : `#${selected}`
+                    )
+                      .split(" ")
+                      .map((w) => w[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase()}
+                  </span>
+                  <strong className="text-sm font-bold text-[var(--color-foreground)] truncate">
+                    {selectedConversation
+                      ? getConversationName(selectedConversation)
+                      : `Cuộc trò chuyện #${selected}`}
+                  </strong>
+                </div>
 
-                <span
-                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                    connected
-                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                      : "bg-amber-50 text-amber-800 border-amber-200"
-                  }`}
-                >
-                  <RefreshCw size={11} className={!connected ? "animate-spin" : ""} />
-                  {connected ? "Đã kết nối" : "Đang kết nối..."}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                      connected
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        : "bg-amber-50 text-amber-800 border-amber-200"
+                    }`}
+                  >
+                    <RefreshCw size={11} className={!connected ? "animate-spin" : ""} />
+                    {connected ? "Đã kết nối" : "Đang kết nối..."}
+                  </span>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[var(--color-background)]/30">

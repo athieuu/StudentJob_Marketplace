@@ -15,12 +15,26 @@ export type CVFeedbackResult = {
 };
 
 export type CVAnalyzeResponse = {
+  historyId?: number | null;
   message: string;
   aiUsed: boolean;
   model?: string;
   data: CVPayload;
   feedback: CVFeedbackResult | null;
   warnings: string[];
+};
+
+export type CVHistoryItem = {
+  id: number;
+  fileName: string;
+  fileType: 'pdf' | 'docx';
+  aiUsed: boolean;
+  model?: string;
+  status: string;
+  data: CVPayload;
+  feedback: CVFeedbackResult | null;
+  warnings: string[];
+  createdAt: string;
 };
 
 export type JobFitResult = {
@@ -62,7 +76,7 @@ async function aiRequest<T>(path: string, options: RequestInit = {}): Promise<T>
 }
 
 export const aiService = {
-  async analyzeCv(file: File): Promise<CVAnalyzeResponse> {
+  async analyzeCv(file: File, targetJob?: string): Promise<CVAnalyzeResponse> {
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (ext !== 'pdf' && ext !== 'docx') {
       throw new Error('Chỉ hỗ trợ CV dạng PDF hoặc DOCX.');
@@ -74,6 +88,9 @@ export const aiService = {
 
     const form = new FormData();
     form.append('file', file);
+    if (targetJob && targetJob.trim()) {
+      form.append('targetJob', targetJob.trim());
+    }
     return aiRequest<CVAnalyzeResponse>('/cv/analyze', { method: 'POST', body: form });
   },
 
@@ -128,5 +145,15 @@ export const aiService = {
 
   async recommendJobs() {
     return aiRequest<{ aiUsed: boolean; data: RecommendedJobItem[] }>('/jobs/recommended');
+  },
+
+  async getCvHistory() {
+    return aiRequest<{ data: CVHistoryItem[] }>('/cv/history');
+  },
+
+  async deleteCvHistory(id: number) {
+    return aiRequest<{ message: string }>(`/cv/history/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
