@@ -2,10 +2,13 @@
 
 // Only run against a fresh, positively identified disposable integration DB.
 const assert = require('node:assert/strict');
+const { isDeepStrictEqual } = require('node:util');
+const parse = (value) => typeof value === 'string' ? JSON.parse(value) : value;
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 const JSZip = require('jszip');
-Object.assign(process.env, { DB_HOST: '127.0.0.1', DB_PORT: '33483', DB_USER: 'studentjob_demo', DB_PASSWORD: 'demo-only', DB_NAME: 'studentjob_marketplace', JWT_SECRET: 'integration-only', API_KEY: 'synthetic', BASE_URL: 'https://mock.invalid', MODEL_NAME: 'synthetic', SMTP_HOST: '', SMTP_USER: '', SMTP_PASS: '', EMAIL_FROM: '' });
+const dbPort = Number(process.env.SJ22_DB_PORT || 33483);
+Object.assign(process.env, { DB_HOST: '127.0.0.1', DB_PORT: String(dbPort), DB_USER: 'studentjob_demo', DB_PASSWORD: 'demo-only', DB_NAME: 'studentjob_marketplace', JWT_SECRET: 'integration-only', API_KEY: 'synthetic', BASE_URL: 'https://mock.invalid', MODEL_NAME: 'synthetic', SMTP_HOST: '', SMTP_USER: '', SMTP_PASS: '', EMAIL_FROM: '' });
 const realFetch = global.fetch;
 let providerCalls = 0;
 let invalidExtraction = false;
@@ -34,13 +37,15 @@ async function docx() {
   return z.generateAsync({ type: 'nodebuffer' });
 }
 async function main() {
-  const db = await mysql.createConnection({ host: '127.0.0.1', port: 33483, user: 'studentjob_demo', password: 'demo-only', database: 'studentjob_marketplace' });
+  const db = await mysql.createConnection({ host: '127.0.0.1', port: dbPort, user: 'studentjob_demo', password: 'demo-only', database: 'studentjob_marketplace' });
   const [[identity]] = await db.query('SELECT @@hostname AS hostname');
   assert.ok(process.env.SJ22_CONTAINER_ID); assert.equal(identity.hostname, process.env.SJ22_CONTAINER_ID);
   const [[state]] = await db.query("SELECT (SELECT COUNT(*) FROM users) users, (SELECT COUNT(*) FROM cv_parse_results) histories, (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='cv_parse_results' AND column_name IN ('file_name','feedback')) history_columns, (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='student_profiles' AND column_name='cv_url') profile_column, (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='reviews') reviews");
-  assert.deepEqual(state, { users: 3, histories: 0, history_columns: 2, profile_column: 1, reviews: 1 });
+  assert.deepEqual(state, { users: Number(process.env.SJ22_EXPECT_USERS || 3), histories: Number(process.env.SJ22_EXPECT_HISTORIES || 0), history_columns: 2, profile_column: 1, reviews: 1 });
   const hash = await bcrypt.hash('SyntheticOnly123!', 10);
-  const [newUser] = await db.execute("INSERT INTO users (email,password,role) VALUES (?,?,'STUDENT')", ['integration.second@example.test', hash]);
+  const secondEmail = process.env.SJ22_SECOND_EMAIL || 'integration.second@example.test';
+  assert.match(secondEmail, /^integration\.[a-z0-9]+@example\.test$/);
+  const [newUser] = await db.execute("INSERT INTO users (email,password,role) VALUES (?,?,'STUDENT')", [secondEmail, hash]);
   const [newProfile] = await db.execute("INSERT INTO student_profiles (user_id,full_name) VALUES (?,'Synthetic Student')", [newUser.insertId]);
   const [job] = await db.execute("INSERT INTO jobs (employer_id,title,description,job_type,status,moderation_status) VALUES (1,'Synthetic job','React role','PART_TIME','OPEN','APPROVED')");
   await db.execute("INSERT INTO applications (job_id,student_id,status) VALUES (?,1,'ACCEPTED')", [job.insertId]);
@@ -63,7 +68,7 @@ async function main() {
     check((await req('GET', '/health/db')).status === 200, 'health');
     const s = await req('POST', '/auth/login', { email: 'student.demo@example.com', password: 'Student@123' });
     const e = await req('POST', '/auth/login', { email: 'employer.demo@example.com', password: 'Student@123' });
-    const other = await req('POST', '/auth/login', { email: 'integration.second@example.test', password: 'SyntheticOnly123!' });
+    const other = await req('POST', '/auth/login', { email: secondEmail, password: 'SyntheticOnly123!' });
     check(s.status === 200 && e.status === 200 && other.status === 200, 'real logins');
     const st = s.data.token, em = e.data.token, ot = other.data.token;
     const typeDoc = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -72,8 +77,8 @@ async function main() {
     check(analysed.status === 200 && analysed.data.aiUsed && Number.isInteger(analysed.data.historyId), 'analysis and history id');
     check(feedbackInput.includes('<target_job>') && feedbackInput.includes('Synthetic React target role'), 'target job reached feedback prompt');
     const historyId = analysed.data.historyId;
-    const [[history]] = await db.execute('SELECT id,user_id,parser FROM cv_parse_results WHERE id=?', [historyId]);
-    check(history && history.user_id === 1 && history.parser === 'ai_llm', 'persisted history owner');
+    const [[history]] = await db.execute('SELECT id,user_id,parser,extracted,feedback FROM cv_parse_results WHERE id=?', [historyId]);
+    check(history && history.user_id === 1 && history.parser === 'ai_llm' && isDeepStrictEqual(parse(history.extracted), analysed.data.data) && isDeepStrictEqual(parse(history.feedback), analysed.data.feedback), 'persisted history owner and payload');
     const mine = await req('GET', '/ai/cv/history', null, st); const theirs = await req('GET', '/ai/cv/history', null, ot);
     check(mine.data.data.some((h) => h.id === historyId) && !theirs.data.data.some((h) => h.id === historyId), 'history visibility');
     check((await req('DELETE', `/ai/cv/history/${historyId}`, null, ot)).status === 404, 'other user cannot delete');
@@ -81,8 +86,8 @@ async function main() {
     const [[deleted]] = await db.execute('SELECT COUNT(*) n FROM cv_parse_results WHERE id=?', [historyId]); check(deleted.n === 0, 'deleted row');
     invalidExtraction = true;
     const fallback = await upload('fallback.docx', doc, typeDoc, st, 'Synthetic fallback target');
-    const [[fallbackRow]] = await db.execute('SELECT user_id,parser,status FROM cv_parse_results WHERE id=?', [fallback.data.historyId]);
-    check(fallback.status === 200 && fallback.data.aiUsed === false && Number.isInteger(fallback.data.historyId) && fallbackRow.user_id === 1 && fallbackRow.parser === 'basic_rule' && feedbackInput.includes('Synthetic fallback target'), 'persisted extraction fallback and feedback');
+    const [[fallbackRow]] = await db.execute('SELECT user_id,parser,status,extracted,feedback FROM cv_parse_results WHERE id=?', [fallback.data.historyId]);
+    check(fallback.status === 200 && fallback.data.aiUsed === false && Number.isInteger(fallback.data.historyId) && fallbackRow.user_id === 1 && fallbackRow.parser === 'basic_rule' && isDeepStrictEqual(parse(fallbackRow.extracted), fallback.data.data) && isDeepStrictEqual(parse(fallbackRow.feedback), fallback.data.feedback) && feedbackInput.includes('Synthetic fallback target'), 'persisted extraction fallback and feedback');
     invalidExtraction = false;
     const text = await upload('text.pdf', pdf('BT /F1 12 Tf 20 250 Td (Synthetic React experience) Tj ET'), 'application/pdf', st);
     check(text.status === 200 && Number.isInteger(text.data.historyId), 'readable PDF');
@@ -96,6 +101,9 @@ async function main() {
     const review = await req('POST', '/reviews', { job_id: job.insertId, rating: 4, comment: 'Synthetic review content' }, st);
     const [[rr]] = await db.execute('SELECT COUNT(*) n FROM reviews WHERE job_id=? AND user_id=1', [job.insertId]);
     check(review.status === 201 && rr.n === 1, 'review 007');
+    const invalidReview = await req('POST', '/reviews', { job_id: job.insertId, rating: 9, comment: 'Synthetic review content' }, st);
+    const ineligibleReview = await req('POST', '/reviews', { job_id: job.insertId, rating: 4, comment: 'Synthetic review content' }, ot);
+    check(invalidReview.status === 400 && ineligibleReview.status === 403, 'review validation and eligibility');
     const studentChat = await req('POST', '/chat/conversations', { employerId: 1 }, st);
     const employerChat = await req('POST', '/chat/conversations', { studentUserId: newUser.insertId }, em);
     check(studentChat.status === 200 && employerChat.status === 200 && studentChat.data.conversationId !== employerChat.data.conversationId, 'both chat initiators');
@@ -107,4 +115,4 @@ async function main() {
     console.log(`PASS ${checks} checks; mocked provider calls=${providerCalls}; real provider network calls=0; history=${historyId} fallback=${fallback.data.historyId} pdf=${text.data.historyId} student=${newUser.insertId} profile=${newProfile.insertId} job=${job.insertId} conversations=${c1},${c2}`);
   } finally { await new Promise((resolve) => server.close(resolve)); await pool.end(); await db.end(); }
 }
-main().catch(() => { console.error('Combined smoke failed; check isolated fixture and route contracts'); process.exitCode = 1; });
+main().catch((error) => { console.error('Combined smoke failed: ' + (error.code === 'ERR_ASSERTION' ? error.message : `${error.name} ${error.code || ''}`)); process.exitCode = 1; });

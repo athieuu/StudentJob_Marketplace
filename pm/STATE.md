@@ -1,5 +1,7 @@
 # Project State — StudentJob Marketplace
 
+> Integration update 2026-11-26: main and Khang were combined in an isolated worktree with database changes through 008 and real-auth/mocked-provider checks; see [INTEGRATION_2026-11-26.md](INTEGRATION_2026-11-26.md). PR and main-merge status are coordinated separately; PM items #9 and #20 remain open.
+
 > Update 2026-11-26: the isolated localhost demo and its actual checks are recorded in [DEMO_2026-11-26.md](DEMO_2026-11-26.md). The following older snapshot is historical; PM item #9 remains open.
 
 > Update 2026-11-25: `d8b6d8b` includes the owner's AI integration. The historical snapshot below predates it. Student-only `/api/ai` routes now provide CV analysis, feedback and assistance, job fit and recommendations; backend Vietnamese explanation defaults are being refined under item #12. Full frontend/end-to-end verification remains open under item #9.
