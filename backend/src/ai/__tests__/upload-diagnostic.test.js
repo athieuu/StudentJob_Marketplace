@@ -15,7 +15,7 @@ const app = express();
 let failHistory = false;
 const dbPath = require.resolve('../../config/db');
 require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: {
-  query: async () => { if (failHistory) throw new Error('synthetic database failure'); return [{ insertId: 42 }]; },
+  query: async () => { if (failHistory) throw new Error('synthetic database failure: private-cv provider-secret SQL'); return [{ insertId: 42 }]; },
 } };
 app.use(express.json());
 app.use('/api/ai', require('../../routes/aiRoutes'));
@@ -97,7 +97,7 @@ test('synthetic CV uploads distinguish parser and provider errors with no networ
     failHistory = true;
     Object.assign(process.env, { API_KEY: '', BASE_URL: '', MODEL_NAME: '' });
     const dbFailure = await upload('/api/ai/cv/analyze', 'text.docx', mimeDocx, await docx('Synthetic React experience'));
-    assert.equal(dbFailure.status, 500); assert.doesNotMatch(JSON.stringify(dbFailure.body), /synthetic database failure/);
+    assert.equal(dbFailure.status, 500); assert.doesNotMatch(JSON.stringify(dbFailure.body), /synthetic database failure|private-cv|provider-secret|SQL/);
     console.log(`mock provider calls=${providerCalls}; actual provider network calls=0`);
   } finally {
     global.fetch = nativeFetch;
