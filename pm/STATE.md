@@ -1,5 +1,7 @@
 # Project State — StudentJob Marketplace
 
+> Update 2026-11-26: the isolated localhost demo and its actual checks are recorded in [DEMO_2026-11-26.md](DEMO_2026-11-26.md). The following older snapshot is historical; PM item #9 remains open.
+
 > Update 2026-11-25: `d8b6d8b` includes the owner's AI integration. The historical snapshot below predates it. Student-only `/api/ai` routes now provide CV analysis, feedback and assistance, job fit and recommendations; backend Vietnamese explanation defaults are being refined under item #12. Full frontend/end-to-end verification remains open under item #9.
 
 _Snapshot: 2026-11-23, based on `main` @ `adc0c86` (identical to `origin/feature/cv-builder-parser`). Written from reading files only; nothing was installed or run._

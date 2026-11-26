@@ -157,7 +157,7 @@ async function readCvFileText(file) {
     const parser = new PDFParse({ data: new Uint8Array(file.buffer) });
     try {
       const result = await parser.getText();
-      return result.text || '';
+      return result.pages.map((page) => page.text).join('\n');
     } finally {
       await parser.destroy().catch(() => {});
     }
@@ -204,8 +204,10 @@ async function saveCvAnalysisHistory({
     );
     return result.insertId;
   } catch (err) {
-    console.warn('saveCvAnalysisHistory skipped:', err.message);
-    return null;
+    console.warn('saveCvAnalysisHistory failed');
+    const failure = new Error('CV history persistence failed');
+    failure.code = 'CV_HISTORY_SAVE_FAILED';
+    throw failure;
   }
 }
 
@@ -220,13 +222,17 @@ async function analyzeCV(req, res) {
 
   const startedAt = Date.now();
   const ext = (req.file.originalname || '').toLowerCase().endsWith('.docx') ? 'docx' : 'pdf';
+  let rawText;
+  try {
+    rawText = await readCvFileText(req.file);
+  } catch {
+    return res.status(422).json({ message: 'Không thể đọc tệp CV. Vui lòng kiểm tra tệp PDF hoặc DOCX và thử lại.' });
+  }
+  if (!rawText.trim()) {
+    return res.status(422).json({ message: 'Không tìm thấy văn bản trong tệp. Hãy dùng PDF có thể chọn chữ hoặc DOCX; nếu PDF là ảnh, hãy chuyển ảnh thành văn bản bằng OCR trước khi tải lên.' });
+  }
 
   try {
-    const rawText = await readCvFileText(req.file);
-    if (!rawText.trim()) {
-      return res.status(422).json({ message: 'Không đọc được văn bản từ file. PDF dạng ảnh cần OCR.' });
-    }
-
     const { contact, anonymized } = extractContactAndStripPII(rawText);
     const injectionFlag = detectInjection(rawText);
 
@@ -286,7 +292,7 @@ async function analyzeCV(req, res) {
       aiUsed = true;
       modelName = extractRes.model;
     } catch (aiErr) {
-      console.warn('cv_extract fallback:', aiErr.message);
+      console.warn('cv_extract fallback');
       const fallbackSkills = extractSkillsFromText(rawText).map((s) => s.name);
       builderPayload = {
         title: contact.full_name ? `CV ${contact.full_name}` : 'CV nhập từ tệp',
@@ -315,7 +321,7 @@ async function analyzeCV(req, res) {
       feedback = fbRes.data;
       if (!modelName) modelName = fbRes.model;
     } catch (fbErr) {
-      console.warn('cv_feedback skipped:', fbErr.message);
+      console.warn('cv_feedback skipped');
       warnings.push('Không thể tạo nhận xét chi tiết cho CV lúc này.');
     }
 
@@ -342,8 +348,11 @@ async function analyzeCV(req, res) {
       warnings,
     });
   } catch (error) {
-    console.error('AI analyzeCV failed:', error.message);
-    return res.status(422).json({ message: error.message || 'Không thể phân tích tệp CV lúc này.' });
+    console.error('AI analyzeCV failed');
+    if (error.code === 'CV_HISTORY_SAVE_FAILED') {
+      return res.status(500).json({ message: 'Không thể lưu lịch sử phân tích CV lúc này. Vui lòng thử lại sau.' });
+    }
+    return res.status(422).json({ message: 'Không thể phân tích CV bằng AI lúc này. Vui lòng thử lại sau.' });
   }
 }
 
