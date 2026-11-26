@@ -35,13 +35,14 @@ def sql(query, expected_error=None):
                           'mysql', '--default-character-set=utf8mb4', '-ustudentjob_demo',
                           '-N', '-B', 'studentjob_marketplace', '-e', query], expected_error)
 
-tables = sorted('users student_profiles employer_profiles jobs applications email_verifications cvs conversations messages skills student_skills job_skills cv_parse_results job_match_scores'.split())
+tables = sorted('users student_profiles employer_profiles jobs applications email_verifications cvs conversations messages skills student_skills job_skills cv_parse_results job_match_scores reviews'.split())
 
 def snapshot():
     assert sql('SHOW TABLES').splitlines() == tables
-    assert sql("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_collation='utf8mb4_unicode_ci'") == '14'
+    assert sql("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_collation='utf8mb4_unicode_ci'") == '15'
     assert sql("SELECT COUNT(*) FROM jobs WHERE status='OPEN' AND moderation_status='APPROVED'") == '2'
-    assert sql('SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE()') == '20'
+    assert sql('SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE()') == '22'
+    assert sql("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='student_profiles' AND column_name='cv_url'") == '1'
     # Compare every legacy column, not just the subset used by the application.
     legacy = (ROOT / 'schema.sql').read_text(encoding='utf-8')
     for table, body in re.findall(r'CREATE TABLE `(\w+)` \((.*?)\) ENGINE', legacy, re.S):

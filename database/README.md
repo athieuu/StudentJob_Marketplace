@@ -1,6 +1,6 @@
 # StudentJob MySQL 8 database
 
-Canonical SQL is `migrations/001_users_profiles.sql` through `006_ai.sql`, followed
+Canonical SQL is `migrations/001_users_profiles.sql` through `007_reviews_profile_cv.sql`, followed
 by optional `seeds/001_demo.sql`. Legacy SQL in `database/` and `backend/database/`
 is deprecated and must not be mixed with this baseline. No backend changes are needed
 for existing SQL contracts; AI tables and `applications.cv_id` are future interfaces.
@@ -26,7 +26,7 @@ synthetic accounts (`student.demo@example.com`, `employer.demo@example.com`,
 The two jobs are explicitly OPEN/APPROVED. Never deploy this compose/seed to production.
 
 The official image runs top-level init files alphabetically, only when its data
-directory is empty. Explicit mounts name the migrations 001–006 and the seed 900.
+directory is empty. Explicit mounts name the migrations 001–007 and the seed 900.
 Health checks authenticate over TCP and query the last migration's table, so the
 temporary initialization server cannot report ready before migrations finish.
 See [official image initialization behavior](https://hub.docker.com/_/mysql).
@@ -45,6 +45,7 @@ SOURCE database/migrations/003_email_verifications.sql;
 SOURCE database/migrations/004_cvs.sql;
 SOURCE database/migrations/005_chat.sql;
 SOURCE database/migrations/006_ai.sql;
+SOURCE database/migrations/007_reviews_profile_cv.sql;
 -- Optional, demo databases only:
 SOURCE database/seeds/001_demo.sql;
 ```
@@ -84,7 +85,7 @@ actual schema. No automated destructive down migration is supplied.
 python database/verify.py --project sjdb-verify-your-unique-suffix
 ```
 
-The verifier refuses existing resources, tests all 14 tables/20 FKs, every legacy
+The verifier refuses existing resources, tests all 15 tables/22 FKs, every legacy
 core column, demo jobs, duplicate applications, orphan references, score bounds,
 chat upsert and cascades, nullable CV deletion, and parse provenance deletion.
 It removes its newly created volume, recreates, compares DDL and demo values

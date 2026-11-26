@@ -1,5 +1,7 @@
 # Backlog
 
+> Update 2026-11-26: backend item #17 has a localhost-only disposable demo and authenticated smoke evidence in [DEMO_2026-11-26.md](DEMO_2026-11-26.md); this does not complete PM item #9 or resolve the AI consent and visibility gaps.
+
 > Update 2026-11-25: B-10/B-13 now have an owner-provided AI route integration; the older design and acceptance text below are not a statement that integration is absent. Backend item #12 covers Vietnamese explanatory defaults and mocked contract checks; PM item #9 remains in progress pending frontend and end-to-end verification.
 
 _Derived from the 2026-11-23 AI-feature analysis of `main` @ `adc0c86`. Status values: `TODO`, `IN PROGRESS`, `DONE`, `DECIDE` (needs a product decision). Priority P0 = do first._
