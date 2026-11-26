@@ -1,5 +1,9 @@
 # Decisions
 
+## D-AI-HISTORY-WRITE — Analysis history write failure (2026-11-26)
+
+The combined integration returns a safe HTTP 500 when analysis history cannot be persisted, rather than reporting HTTP 200 with a null `historyId`. Successful analysis and extraction-fallback responses keep their existing envelope and now require a usable history ID. The frontend already handles non-success `message` responses, but should surface the new save-failure message and permit retry; no automatic save or silent success should be assumed. Older databases without migration 008 require a separately reviewed additive upgrade; Compose mounts do not upgrade existing volumes.
+
 ## D-AI-LANGUAGE — Vietnamese explanatory defaults (2026-11-25)
 
 Owner direction: AI feedback, fit explanations, recommendation reasons and improvement notes default to natural Vietnamese. Generated CV summaries and rewritten bullets retain the source CV language; names, technical skills and factual evidence remain as written. No language preference parameter is currently exposed. JSON keys, enums and route contracts remain unchanged. This prompt policy requires real-model evaluation; mocked checks do not establish fluency.

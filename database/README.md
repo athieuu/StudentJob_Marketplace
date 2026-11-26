@@ -1,9 +1,8 @@
 # StudentJob MySQL 8 database
 
-Canonical SQL is `migrations/001_users_profiles.sql` through `006_ai.sql`, followed
+Canonical SQL is `migrations/001_users_profiles.sql` through `008_cv_feedback_history.sql`, followed
 by optional `seeds/001_demo.sql`. Legacy SQL in `database/` and `backend/database/`
-is deprecated and must not be mixed with this baseline. No backend changes are needed
-for existing SQL contracts; AI tables and `applications.cv_id` are future interfaces.
+is deprecated and must not be mixed with this baseline.
 
 ## Disposable local demo
 
@@ -26,8 +25,8 @@ synthetic accounts (`student.demo@example.com`, `employer.demo@example.com`,
 The two jobs are explicitly OPEN/APPROVED. Never deploy this compose/seed to production.
 
 The official image runs top-level init files alphabetically, only when its data
-directory is empty. Explicit mounts name the migrations 001–006 and the seed 900.
-Health checks authenticate over TCP and query the last migration's table, so the
+directory is empty. Explicit mounts name migrations 001–008 and the seed 900.
+Health checks authenticate over TCP and query both columns added by 008, so the
 temporary initialization server cannot report ready before migrations finish.
 See [official image initialization behavior](https://hub.docker.com/_/mysql).
 
@@ -45,6 +44,8 @@ SOURCE database/migrations/003_email_verifications.sql;
 SOURCE database/migrations/004_cvs.sql;
 SOURCE database/migrations/005_chat.sql;
 SOURCE database/migrations/006_ai.sql;
+SOURCE database/migrations/007_reviews_profile_cv.sql;
+SOURCE database/migrations/008_cv_feedback_history.sql;
 -- Optional, demo databases only:
 SOURCE database/seeds/001_demo.sql;
 ```
@@ -63,17 +64,22 @@ consume space and may require metadata locks. MySQL DDL implicitly commits; an
 SQL transaction cannot undo a partially applied baseline. Use a fresh database
 or restore a validated backup after a failed production migration.
 
+For a database known to have 001–006, inventory `student_profiles.cv_url`,
+`reviews`, and `cv_parse_results.file_name`/`feedback` and compare their exact
+definitions and constraints. After backup and review, apply only missing changes:
+007 adds nullable `cv_url VARCHAR(500)` and the `reviews` table (unique job/user,
+rating check and cascading job/user foreign keys); 008 adds nullable
+`file_name VARCHAR(255)` and `feedback JSON`. Do not blindly rerun either ALTER:
+007 uses `CREATE TABLE IF NOT EXISTS`, which does not repair an existing divergent
+reviews table. Prepare a separately reviewed additive migration tailored to the
+inventory, including any missing indexes/constraints and data cleanup. No existing
+volume is upgraded automatically by changing Compose mounts.
+
 ## Rollback and reproducible checks
 
-Stopping with `down` retains the demo data. For a newly created disposable demo
-project only, reset by removing **that project's** volume and reinitializing:
-
-```powershell
-docker compose -p studentjob-my-demo -f database/docker-compose.yml down -v
-docker compose -p studentjob-my-demo -f database/docker-compose.yml up -d --wait
-```
-
-Never use `down -v` on a shared or production project. Do not use Docker prune.
+Stopping with `down` retains the demo data. For a fresh baseline use a new,
+unique project and unused port; do not reuse or remove an existing volume.
+Do not use Docker prune.
 Production rollback is restore/switch back to the validated backup, preserving
 new data separately; dropping these tables loses CVs/chat/AI data. If reverting
 only new features, first detach student parse provenance and application CV FKs,
@@ -81,14 +87,15 @@ then remove child tables before parents after exporting data and reviewing the
 actual schema. No automated destructive down migration is supplied.
 
 ```powershell
-python database/verify.py --project sjdb-verify-your-unique-suffix
+$env:STUDENTJOB_DB_PORT = '33588' # choose an unused localhost port
+py -3.13 database/verify.py --project sjdb-verify-your-unique-suffix
 ```
 
-The verifier refuses existing resources, tests all 14 tables/20 FKs, every legacy
+The verifier refuses existing resources, tests all 15 tables/22 FKs, every legacy
 core column, demo jobs, duplicate applications, orphan references, score bounds,
 chat upsert and cascades, nullable CV deletion, and parse provenance deletion.
-It removes its newly created volume, recreates, compares DDL and demo values
-(excluding runtime timestamps), and removes the disposable volume again.
+It checks 007/008 contracts, backend-equivalent history predicates and JSON, and
+leaves the new container and volume intact. Rejected inserts can advance counters.
 `VERIFICATION.md` records commands, key results, query plans and exit codes.
 Any unexpected nonzero command/assertion fails the run; only named expected
 integrity rejections pass. A failed run leaves its own resources for diagnosis;
@@ -106,7 +113,7 @@ was tested. No application dependencies or source have been changed.
 
 ## AI application obligations
 
-The future writer validates `parser`, `method`, and both `source` strings
+The application must validate `parser`, `method`, and both `source` strings
 (VARCHAR(20), extensible without DDL), consent and same-user ownership of CV,
 parse provenance and application CV; FKs enforce existence, not roles/ownership.
 Do not write raw CV text into extracted JSON, warnings, errors, or logs.

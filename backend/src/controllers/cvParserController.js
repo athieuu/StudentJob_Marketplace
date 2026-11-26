@@ -36,12 +36,12 @@ async function parseCV(req, res) {
     if (isPdf) {
       parser = new PDFParse({ data: new Uint8Array(req.file.buffer) });
       const result = await parser.getText();
-      text = result.text;
+      text = result.pages.map(page => page.text).join('\n');
     } else {
       const result = await mammoth.extractRawText({ buffer: req.file.buffer });
       text = result.value;
     }
-    if (!text || !text.trim()) return res.status(422).json({ message: 'Không đọc được văn bản. PDF dạng ảnh cần OCR.' });
+    if (!text || !text.trim()) return res.status(422).json({ message: 'Không tìm thấy văn bản trong tệp. Hãy dùng PDF có thể chọn chữ hoặc DOCX; nếu PDF là ảnh, hãy chuyển ảnh thành văn bản bằng OCR trước khi tải lên.' });
     res.json({ message: 'Đã trích xuất văn bản CV. Vui lòng kiểm tra trước khi lưu.', data: extractFields(text), warnings: ['Học vấn, kinh nghiệm và dự án cần nhập hoặc xác nhận thủ công.'] });
   } catch (error) {
     console.error('CV parser failed:', error.message);
