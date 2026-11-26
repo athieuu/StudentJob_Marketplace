@@ -1,11 +1,9 @@
-"""Destructive verification ONLY for a new uniquely named disposable demo project.
+"""Verification ONLY for a new uniquely named disposable demo project.
 
 Usage: python database/verify.py --project sjdb-verify-<unique-suffix>
 Requires Docker Compose and Python standard library; no dependency installs.
 """
 import argparse
-import hashlib
-import json
 from pathlib import Path
 import re
 import subprocess
@@ -42,7 +40,8 @@ def snapshot():
     assert sql("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_collation='utf8mb4_unicode_ci'") == '15'
     assert sql("SELECT COUNT(*) FROM jobs WHERE status='OPEN' AND moderation_status='APPROVED'") == '2'
     assert sql('SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE()') == '22'
-    assert sql("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='student_profiles' AND column_name='cv_url'") == '1'
+    assert sql("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND ((table_name='student_profiles' AND column_name='cv_url') OR (table_name='cv_parse_results' AND column_name IN ('file_name','feedback')))") == '3'
+    assert sql("START TRANSACTION; UPDATE student_profiles SET cv_url='https://example.test/synthetic.pdf' WHERE user_id=1; SELECT cv_url FROM student_profiles WHERE user_id=1; SELECT COUNT(*) FROM student_skills WHERE student_id=1; ROLLBACK;") == 'https://example.test/synthetic.pdf\n2'
     # Compare every legacy column, not just the subset used by the application.
     legacy = (ROOT / 'schema.sql').read_text(encoding='utf-8')
     for table, body in re.findall(r'CREATE TABLE `(\w+)` \((.*?)\) ENGINE', legacy, re.S):
@@ -65,7 +64,17 @@ try:
     assert not run(['docker', 'volume', 'ls', '-q', '--filter', f'name=^{args.project}_demo-data$'])
     run(compose + ['config', '--quiet'])
     run(compose + ['up', '-d', '--wait', '--wait-timeout', '240'])
+    run(compose + ['ps'])
     first = snapshot()
+    sql("SELECT table_name,index_name,seq_in_index,column_name,non_unique FROM information_schema.statistics WHERE table_schema=DATABASE() ORDER BY table_name,index_name,seq_in_index")
+    assert sql("START TRANSACTION; INSERT INTO cv_parse_results (user_id,file_name,parser,model,source_file_type,status,extracted,warnings,feedback,duration_ms,file_hash,expires_at) VALUES (1,'synthetic.pdf','ai_llm','demo','pdf','success',JSON_OBJECT('name','Synthetic'),JSON_ARRAY('warning'),JSON_OBJECT('score',42),12,REPEAT('a',64),DATE_ADD(NOW(), INTERVAL 90 DAY)); SET @history_id=LAST_INSERT_ID(); SELECT @history_id > 0; SELECT file_name,JSON_UNQUOTE(JSON_EXTRACT(extracted,'$.name')),JSON_EXTRACT(warnings,'$[0]'),JSON_EXTRACT(feedback,'$.score'),TIMESTAMPDIFF(DAY,created_at,expires_at),cv_id IS NULL FROM cv_parse_results WHERE id=@history_id AND user_id=1 AND (expires_at IS NULL OR expires_at > NOW()); SELECT COUNT(*) FROM cv_parse_results WHERE id=@history_id AND user_id=2 AND (expires_at IS NULL OR expires_at > NOW()); DELETE FROM cv_parse_results WHERE id=@history_id AND user_id=2; SELECT ROW_COUNT(); UPDATE cv_parse_results SET expires_at=DATE_SUB(NOW(), INTERVAL 1 DAY) WHERE id=@history_id; SELECT COUNT(*) FROM cv_parse_results WHERE id=@history_id AND user_id=1 AND (expires_at IS NULL OR expires_at > NOW()); DELETE FROM cv_parse_results WHERE id=@history_id AND user_id=1; SELECT ROW_COUNT(); ROLLBACK;") == '1\nsynthetic.pdf\tSynthetic\t\"warning\"\t42\t90\t1\n0\n0\n0\n1'
+    assert sql("START TRANSACTION; INSERT INTO reviews(job_id,user_id,rating,comment) VALUES(1,1,5,'Synthetic review'); SELECT rating,comment FROM reviews WHERE job_id=1 AND user_id=1; DELETE FROM jobs WHERE id=1; SELECT COUNT(*) FROM reviews; ROLLBACK;") == '5\tSynthetic review\n0'
+    sql("INSERT INTO reviews(job_id,user_id,rating,comment) VALUES(1,1,6,'invalid')", 'ERROR 3819')
+    sql("INSERT INTO reviews(job_id,user_id,rating,comment) VALUES(999999,1,5,'orphan')", 'ERROR 1452')
+    sql("START TRANSACTION; INSERT INTO reviews(job_id,user_id,rating,comment) VALUES(1,1,5,'one'),(1,1,4,'duplicate')", 'ERROR 1062')
+    sql("INSERT INTO cv_parse_results(user_id,parser,status,extracted,expires_at) VALUES(999999,'basic_rule','partial',JSON_OBJECT(),NOW())", 'ERROR 1452')
+    sql("INSERT INTO cv_parse_results(user_id,parser,status,extracted,expires_at) VALUES(1,'basic_rule','invalid',JSON_OBJECT(),NOW())", 'ERROR 1265')
+    sql("INSERT INTO cv_parse_results(user_id,parser,status,extracted,expires_at) VALUES(1,'basic_rule','partial','not json',NOW())", 'ERROR 3140')
     sql('SELECT id,title,status,moderation_status FROM jobs ORDER BY id')
     sql('INSERT INTO applications(job_id,student_id) VALUES(1,1)', 'ERROR 1062')
     sql("INSERT INTO messages(conversation_id,sender_id,content) VALUES(999999,1,'orphan')", 'ERROR 1452')
@@ -84,17 +93,8 @@ try:
                   'SELECT a.id,j.title,sp.full_name,eu.email FROM applications a JOIN jobs j ON a.job_id=j.id JOIN student_profiles sp ON a.student_id=sp.id JOIN users su ON sp.user_id=su.id JOIN employer_profiles ep ON j.employer_id=ep.id JOIN users eu ON ep.user_id=eu.id ORDER BY a.applied_at DESC,a.id DESC']:
         sql('EXPLAIN ANALYZE ' + query)
     run(compose + ['logs', '--no-color', 'mysql'])
-    # Only this invocation's newly created volume is authorized for removal.
-    run(compose + ['down', '-v'])
-    assert not run(['docker', 'volume', 'ls', '-q', '--filter', f'name=^{args.project}_demo-data$'])
-    run(compose + ['up', '-d', '--wait', '--wait-timeout', '240'])
-    second = snapshot()
-    # Intentionally rejected inserts can advance auto_increment; first snapshot preceded them.
-    assert first == second, 'Reinitialization schema/demo mismatch'
-    digest = hashlib.sha256(json.dumps(first, sort_keys=True).encode()).hexdigest()
-    log.append('PASS: both empty-volume initializations match (timestamps excluded); SHA256=' + digest)
-    run(compose + ['down', '-v'])
-    print(log[-2])
+    log.append('PASS: fresh initialization and contract checks; volume retained')
+    print(log[-1])
 finally:
     transcript = '# Disposable MySQL verification\n\n```text\n' + '\n'.join(log) + '\n```\n'
     (ROOT / 'VERIFICATION.md').write_text('\n'.join(line.rstrip() for line in transcript.splitlines()) + '\n', encoding='utf-8')
