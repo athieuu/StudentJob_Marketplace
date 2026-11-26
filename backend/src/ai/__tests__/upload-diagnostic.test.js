@@ -12,6 +12,11 @@ require.cache[authPath] = { id: authPath, filename: authPath, loaded: true, expo
   authorizeRole: () => (req, res, next) => next(),
 } };
 const app = express();
+let failHistory = false;
+const dbPath = require.resolve('../../config/db');
+require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: {
+  query: async () => { if (failHistory) throw new Error('synthetic database failure'); return [{ insertId: 42 }]; },
+} };
 app.use(express.json());
 app.use('/api/ai', require('../../routes/aiRoutes'));
 app.use('/api/cvs', require('../../routes/cvParserRoutes'));
@@ -53,7 +58,7 @@ test('synthetic CV uploads distinguish parser and provider errors with no networ
     const data = invalid ? {} : providerCalls % 2 === 1
       ? { language: 'en', summary: null, education: [], experience: [], skills: [], projects: [], certifications: [] }
       : { overall: 'Hãy bổ sung thông tin nếu có.', items: [] };
-    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify(data) } }] }) };
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: invalid ? 'invalid JSON' : JSON.stringify(data) } }] }) };
   };
   async function upload(path, name, type, bytes) {
     const form = new FormData(); form.append('file', new Blob([bytes], { type }), name);
@@ -84,10 +89,15 @@ test('synthetic CV uploads distinguish parser and provider errors with no networ
     const imageEnabled = await upload('/api/ai/cv/analyze', 'image.pdf', mimePdf, imagePdf);
     assert.equal(imageEnabled.status, 422); assert.equal(providerCalls, 0);
     const success = await upload('/api/ai/cv/analyze', 'text.docx', mimeDocx, await docx('Synthetic React experience'));
-    assert.equal(success.status, 200); assert.equal(success.body.aiUsed, true); assert.equal(providerCalls, 2);
+    assert.equal(success.status, 200); assert.equal(success.body.aiUsed, true); assert.equal(success.body.historyId, 42); assert.equal(providerCalls, 2);
     invalid = true;
     const failure = await upload('/api/ai/cv/analyze', 'text.docx', mimeDocx, await docx('Synthetic React experience'));
-    assert.equal(failure.status, 422); assert.match(failure.body.message, /AI/); assert.equal(providerCalls, 4);
+    assert.equal(failure.status, 200); assert.equal(failure.body.aiUsed, false); assert.equal(failure.body.historyId, 42);
+    assert.ok(failure.body.warnings.length >= 1); assert.equal(providerCalls, 6);
+    failHistory = true;
+    Object.assign(process.env, { API_KEY: '', BASE_URL: '', MODEL_NAME: '' });
+    const dbFailure = await upload('/api/ai/cv/analyze', 'text.docx', mimeDocx, await docx('Synthetic React experience'));
+    assert.equal(dbFailure.status, 500); assert.doesNotMatch(JSON.stringify(dbFailure.body), /synthetic database failure/);
     console.log(`mock provider calls=${providerCalls}; actual provider network calls=0`);
   } finally {
     global.fetch = nativeFetch;
