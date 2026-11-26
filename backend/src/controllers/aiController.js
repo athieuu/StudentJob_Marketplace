@@ -1,7 +1,9 @@
 'use strict';
 
+const crypto = require('crypto');
 const mammoth = require('mammoth');
 const { PDFParse } = require('pdf-parse');
+const pool = require('../config/db');
 const { wrapData } = require('../ai/prompts');
 const { isConfigured, runStructuredPrompt } = require('../ai/llm');
 const {
@@ -165,6 +167,48 @@ async function readCvFileText(file) {
   return result.value || '';
 }
 
+async function saveCvAnalysisHistory({
+  userId,
+  fileName,
+  fileType,
+  aiUsed,
+  model,
+  extracted,
+  feedback,
+  warnings,
+  durationMs,
+  fileBuffer,
+}) {
+  try {
+    const fileHash = fileBuffer
+      ? crypto.createHash('sha256').update(fileBuffer).digest('hex')
+      : null;
+    const status = aiUsed ? (feedback ? 'success' : 'partial') : 'partial';
+    const [result] = await pool.query(
+      `INSERT INTO cv_parse_results
+       (user_id, file_name, parser, model, source_file_type, status, extracted, warnings, feedback, duration_ms, file_hash, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 90 DAY))`,
+      [
+        userId,
+        String(fileName || 'CV').slice(0, 255),
+        aiUsed ? 'ai_llm' : 'basic_rule',
+        model ? String(model).slice(0, 100) : null,
+        fileType === 'docx' ? 'docx' : 'pdf',
+        status,
+        JSON.stringify(extracted || {}),
+        JSON.stringify(warnings || []),
+        feedback ? JSON.stringify(feedback) : null,
+        Number.isFinite(durationMs) ? Math.max(0, Math.round(durationMs)) : null,
+        fileHash,
+      ]
+    );
+    return result.insertId;
+  } catch (err) {
+    console.warn('saveCvAnalysisHistory skipped:', err.message);
+    return null;
+  }
+}
+
 /**
  * POST /api/ai/cv/analyze
  * Upload PDF/DOCX -> extract raw text -> AI cv_extract + groundCvExtract + AI cv_feedback
@@ -173,6 +217,9 @@ async function analyzeCV(req, res) {
   if (!req.file) {
     return res.status(400).json({ message: 'Vui lòng chọn file PDF hoặc DOCX.' });
   }
+
+  const startedAt = Date.now();
+  const ext = (req.file.originalname || '').toLowerCase().endsWith('.docx') ? 'docx' : 'pdf';
 
   try {
     const rawText = await readCvFileText(req.file);
@@ -185,59 +232,118 @@ async function analyzeCV(req, res) {
 
     if (!isConfigured()) {
       const fallbackSkills = extractSkillsFromText(rawText).map((s) => s.name);
+      const basicPayload = {
+        title: contact.full_name ? `CV ${contact.full_name}` : 'CV nhập từ tệp',
+        template: 'modern',
+        personal_info: { ...contact, summary: '' },
+        education: [],
+        experience: [],
+        skills: fallbackSkills,
+        projects: [],
+        certifications: [],
+      };
+      const basicWarnings = ['Tính năng AI chưa sẵn sàng, chỉ trích xuất cơ bản.'];
+      const historyId = await saveCvAnalysisHistory({
+        userId: req.user.id,
+        fileName: req.file.originalname,
+        fileType: ext,
+        aiUsed: false,
+        model: null,
+        extracted: basicPayload,
+        feedback: null,
+        warnings: basicWarnings,
+        durationMs: Date.now() - startedAt,
+        fileBuffer: req.file.buffer,
+      });
       return res.json({
+        historyId,
         message: 'Đã trích xuất cơ bản (AI chưa được cấu hình).',
         aiUsed: false,
-        data: {
-          title: contact.full_name ? `CV ${contact.full_name}` : 'CV nhập từ tệp',
-          template: 'modern',
-          personal_info: { ...contact, summary: '' },
-          education: [],
-          experience: [],
-          skills: fallbackSkills,
-          projects: [],
-          certifications: [],
-        },
+        data: basicPayload,
         feedback: null,
-        warnings: ['Tính năng AI chưa sẵn sàng, chỉ trích xuất cơ bản.'],
+        warnings: basicWarnings,
       });
     }
 
     const warnings = [];
     if (injectionFlag) warnings.push('Phát hiện nội dung bất thường trong CV, đã cô lập an toàn.');
 
-    const extractRes = await runStructuredPrompt(
-      'cv_extract',
-      wrapData('cv_text', anonymized.slice(0, 14000))
-    );
-    const grounded = groundCvExtract(extractRes.data, rawText);
-    warnings.push(...grounded.warnings);
-
-    const builderPayload = mapExtractedToBuilderPayload(grounded.data, contact);
-
+    let builderPayload;
     let feedback = null;
+    let aiUsed = false;
+    let modelName;
+    let cvDataForFeedback = null;
+
     try {
-      const fbRes = await runStructuredPrompt(
-        'cv_feedback',
-        wrapData('cv_json', JSON.stringify(grounded.data))
+      const extractRes = await runStructuredPrompt(
+        'cv_extract',
+        wrapData('cv_text', anonymized.slice(0, 14000))
       );
+      const grounded = groundCvExtract(extractRes.data, rawText);
+      warnings.push(...grounded.warnings);
+      builderPayload = mapExtractedToBuilderPayload(grounded.data, contact);
+      cvDataForFeedback = grounded.data;
+      aiUsed = true;
+      modelName = extractRes.model;
+    } catch (aiErr) {
+      console.warn('cv_extract fallback:', aiErr.message);
+      const fallbackSkills = extractSkillsFromText(rawText).map((s) => s.name);
+      builderPayload = {
+        title: contact.full_name ? `CV ${contact.full_name}` : 'CV nhập từ tệp',
+        template: 'modern',
+        personal_info: { ...contact, summary: '' },
+        education: [],
+        experience: [],
+        skills: fallbackSkills,
+        projects: [],
+        certifications: [],
+      };
+      cvDataForFeedback = {
+        rawPreview: anonymized.slice(0, 3500),
+        skills: fallbackSkills,
+      };
+      warnings.push('AI trích xuất cấu trúc chi tiết gặp giới hạn định dạng, hệ thống đã chuyển sang trích xuất cơ bản và vẫn chạy đánh giá AI.');
+    }
+
+    try {
+      const targetJob = typeof req.body?.targetJob === 'string' ? req.body.targetJob.trim() : '';
+      let fbInput = wrapData('cv_json', JSON.stringify(cvDataForFeedback));
+      if (targetJob) {
+        fbInput += `\n${wrapData('target_job', targetJob.slice(0, 2000))}`;
+      }
+      const fbRes = await runStructuredPrompt('cv_feedback', fbInput);
       feedback = fbRes.data;
+      if (!modelName) modelName = fbRes.model;
     } catch (fbErr) {
-      console.warn('cv_feedback skipped');
+      console.warn('cv_feedback skipped:', fbErr.message);
       warnings.push('Không thể tạo nhận xét chi tiết cho CV lúc này.');
     }
 
+    const historyId = await saveCvAnalysisHistory({
+      userId: req.user.id,
+      fileName: req.file.originalname,
+      fileType: ext,
+      aiUsed,
+      model: modelName,
+      extracted: builderPayload,
+      feedback,
+      warnings,
+      durationMs: Date.now() - startedAt,
+      fileBuffer: req.file.buffer,
+    });
+
     return res.json({
-      message: 'Phân tích CV bằng AI thành công.',
-      aiUsed: true,
-      model: extractRes.model,
+      historyId,
+      message: aiUsed ? 'Phân tích CV bằng AI thành công.' : 'Đã trích xuất thông tin cơ bản từ CV.',
+      aiUsed,
+      ...(modelName ? { model: modelName } : {}),
       data: builderPayload,
       feedback,
       warnings,
     });
   } catch (error) {
-    console.error('AI analyzeCV failed');
-    return res.status(422).json({ message: 'Không thể phân tích tệp CV lúc này.' });
+    console.error('AI analyzeCV failed:', error.message);
+    return res.status(422).json({ message: error.message || 'Không thể phân tích tệp CV lúc này.' });
   }
 }
 
@@ -556,10 +662,71 @@ async function recommendJobs(req, res) {
   }
 }
 
+/**
+ * GET /api/ai/cv/history
+ * Lấy danh sách lịch sử phân tích & nhận xét CV của sinh viên hiện tại
+ */
+async function getCvHistory(req, res) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, cv_id, file_name, parser, model, source_file_type, status,
+              extracted, feedback, warnings, created_at
+       FROM cv_parse_results
+       WHERE user_id = ? AND (expires_at IS NULL OR expires_at > NOW())
+       ORDER BY created_at DESC
+       LIMIT 30`,
+      [req.user.id]
+    );
+
+    const data = rows.map((row) => ({
+      id: row.id,
+      fileName: row.file_name || 'CV đã phân tích',
+      fileType: row.source_file_type || 'pdf',
+      aiUsed: row.parser === 'ai_llm',
+      model: row.model || undefined,
+      status: row.status,
+      data: parseJsonField(row.extracted, {}),
+      feedback: parseJsonField(row.feedback, null),
+      warnings: parseJsonField(row.warnings, []),
+      createdAt: row.created_at,
+    }));
+
+    return res.json({ data });
+  } catch (error) {
+    console.error('AI getCvHistory error:', error.message);
+    return res.status(500).json({ message: 'Không thể tải lịch sử nhận xét CV.' });
+  }
+}
+
+/**
+ * DELETE /api/ai/cv/history/:id
+ */
+async function deleteCvHistory(req, res) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({ message: 'ID lịch sử không hợp lệ.' });
+    }
+    const [result] = await pool.query(
+      'DELETE FROM cv_parse_results WHERE id = ? AND user_id = ?',
+      [id, req.user.id]
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: 'Không tìm thấy mục lịch sử này.' });
+    }
+    return res.json({ message: 'Đã xóa mục lịch sử.' });
+  } catch (error) {
+    console.error('AI deleteCvHistory error:', error.message);
+    return res.status(500).json({ message: 'Không thể xóa mục lịch sử.' });
+  }
+}
+
 module.exports = {
   analyzeCV,
   feedbackCV,
   assistCV,
   assessJobFit,
   recommendJobs,
+  getCvHistory,
+  deleteCvHistory,
 };

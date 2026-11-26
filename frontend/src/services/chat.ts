@@ -18,4 +18,5 @@ export const chatApi = {
   conversations: () => apiRequest<{ conversations: ChatConversation[] }>("/chat/conversations", {}, true),
   messages: (id: number) => apiRequest<{ messages: ChatMessage[] }>(`/chat/conversations/${id}/messages`, {}, true),
   create: (employerId: number) => apiRequest<{ conversationId: number }>("/chat/conversations", {method:"POST", body:JSON.stringify({employerId})}, true),
+  createWithStudent: (studentUserId: number) => apiRequest<{ conversationId: number }>("/chat/conversations", {method:"POST", body:JSON.stringify({studentUserId})}, true),
 };

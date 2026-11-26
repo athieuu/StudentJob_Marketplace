@@ -11,11 +11,17 @@ const PORT = process.env.PORT || 5000;
 // Tạo HTTP Server dùng chung cho Express và Socket.IO
 const server = http.createServer(app);
 
+const allowedOrigins = (process.env.CORS_ORIGIN || process.env.CLIENT_URL || "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 // Khởi tạo Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173",
-        methods: ["GET", "POST"]
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 

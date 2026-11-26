@@ -13,6 +13,11 @@ import {
   Bookmark,
   Bot,
   LogOut,
+  LayoutDashboard,
+  BriefcaseBusiness,
+  Building2,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 import type { User } from "../../types";
 import { Button } from "./Button";
@@ -27,6 +32,19 @@ const studentPersonalLinks = [
   { label: "Đơn ứng tuyển", to: "/student/applications", icon: ClipboardList },
   { label: "CV của tôi", to: "/student/cvs", icon: FileText },
   { label: "Tin nhắn", to: "/student/messages", icon: Mail },
+];
+
+const employerPersonalLinks = [
+  { label: "Tổng quan tuyển dụng", to: "/employer/dashboard", icon: LayoutDashboard },
+  { label: "Tin tuyển dụng", to: "/employer/jobs", icon: BriefcaseBusiness },
+  { label: "Hồ sơ công ty", to: "/employer/profile", icon: Building2 },
+  { label: "Tin nhắn", to: "/employer/messages", icon: Mail },
+];
+
+const adminPersonalLinks = [
+  { label: "Bảng điều khiển", to: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Quản lý người dùng", to: "/admin/users", icon: Users },
+  { label: "Duyệt tin tuyển dụng", to: "/admin/jobs", icon: ShieldCheck },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
@@ -45,6 +63,11 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   }, []);
 
   const isStudent = user?.role === "STUDENT";
+  const personalLinks = isStudent
+    ? studentPersonalLinks
+    : user?.role === "EMPLOYER"
+      ? employerPersonalLinks
+      : adminPersonalLinks;
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `transition-colors duration-150 hover:text-[var(--color-primary)] ${
@@ -90,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
               to={`/${user.role.toLowerCase()}/dashboard`}
               className="text-[var(--color-primary)] font-semibold hover:underline"
             >
-              Tổng quan
+              Tổng quan Dashboard
             </Link>
           )}
         </nav>
@@ -98,84 +121,70 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-3">
           {user ? (
-            isStudent ? (
-              <div className="relative" ref={menuRef}>
-                <button
-                  type="button"
-                  onClick={() => setProfileMenuOpen((prev) => !prev)}
-                  className="inline-flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl border border-[var(--color-border)] bg-white hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
-                  aria-expanded={profileMenuOpen}
-                  aria-label="Menu cá nhân"
-                >
-                  <span className="w-7 h-7 rounded-full bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-[var(--color-primary)] inline-flex items-center justify-center font-bold text-xs uppercase">
-                    {user.name.slice(0, 1)}
-                  </span>
-                  <span className="text-xs font-semibold text-[var(--color-foreground)]">
-                    {user.name.split(" ")[0]}
-                  </span>
-                  <ChevronDown
-                    size={14}
-                    className={`text-[var(--color-muted-foreground)] transition-transform duration-150 ${
-                      profileMenuOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {profileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-60 bg-white border border-[var(--color-border)] rounded-xl shadow-lg py-2 z-50">
-                    <div className="px-3.5 py-2 border-b border-[var(--color-border)] mb-1">
-                      <b className="text-xs font-bold text-[var(--color-foreground)] block truncate">
-                        {user.name}
-                      </b>
-                      <small className="text-[11px] text-[var(--color-muted-foreground)] block truncate">
-                        {user.email}
-                      </small>
-                    </div>
-
-                    {studentPersonalLinks.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)] transition-colors duration-150"
-                        >
-                          <Icon size={15} className="text-[var(--color-muted-foreground)] shrink-0" />
-                          <span>{item.label}</span>
-                        </Link>
-                      );
-                    })}
-
-                    <div className="my-1 border-t border-[var(--color-border)]" />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        onLogout();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
-                    >
-                      <LogOut size={15} className="shrink-0" />
-                      <span>Đăng xuất</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-foreground)]">
-                  <span className="w-8 h-8 rounded-full bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] inline-flex items-center justify-center font-bold text-xs uppercase">
-                    {user.name.slice(0, 1)}
-                  </span>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                className="inline-flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl border border-[var(--color-border)] bg-white hover:bg-[var(--color-background)] transition-colors duration-150 cursor-pointer"
+                aria-expanded={profileMenuOpen}
+                aria-label="Menu cá nhân"
+              >
+                <span className="w-7 h-7 rounded-full bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-[var(--color-primary)] inline-flex items-center justify-center font-bold text-xs uppercase">
+                  {user.name.slice(0, 1)}
+                </span>
+                <span className="text-xs font-semibold text-[var(--color-foreground)]">
                   {user.name.split(" ")[0]}
                 </span>
-                <Button variant="outline" size="sm" onClick={onLogout}>
-                  Đăng xuất
-                </Button>
-              </div>
-            )
+                <ChevronDown
+                  size={14}
+                  className={`text-[var(--color-muted-foreground)] transition-transform duration-150 ${
+                    profileMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {profileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-white border border-[var(--color-border)] rounded-xl shadow-lg py-2 z-50">
+                  <div className="px-3.5 py-2 border-b border-[var(--color-border)] mb-1">
+                    <b className="text-xs font-bold text-[var(--color-foreground)] block truncate">
+                      {user.name}
+                    </b>
+                    <small className="text-[11px] text-[var(--color-muted-foreground)] block truncate">
+                      {user.email}
+                    </small>
+                  </div>
+
+                  {personalLinks.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setProfileMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)] transition-colors duration-150"
+                      >
+                        <Icon size={15} className="text-[var(--color-muted-foreground)] shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+
+                  <div className="my-1 border-t border-[var(--color-border)]" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
+                  >
+                    <LogOut size={15} className="shrink-0" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="flex items-center gap-2.5">
               <Link to="/login">
@@ -238,35 +247,28 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                 >
                   <Bookmark size={15} /> Việc làm đã lưu
                 </Link>
-                <div className="pt-2 mt-1 border-t border-[var(--color-border)] space-y-1">
-                  <span className="px-2 text-[11px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] block">
-                    Cá nhân
-                  </span>
-                  {studentPersonalLinks.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        className="px-2 py-1.5 rounded hover:bg-[var(--color-muted)] hover:text-[var(--color-primary)] flex items-center gap-2 text-[var(--color-foreground)]"
-                        onClick={() => setMobileOpen(false)}
-                      >
-                        <Icon size={15} /> {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
               </>
             )}
 
-            {user && !isStudent && (
-              <Link
-                to={`/${user.role.toLowerCase()}/dashboard`}
-                className="px-2 py-1.5 rounded text-[var(--color-primary)] font-semibold hover:bg-[var(--color-muted)]"
-                onClick={() => setMobileOpen(false)}
-              >
-                Tổng quan {user.role === "EMPLOYER" ? "Nhà tuyển dụng" : "Quản trị"}
-              </Link>
+            {user && (
+              <div className="pt-2 mt-1 border-t border-[var(--color-border)] space-y-1">
+                <span className="px-2 text-[11px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] block">
+                  {isStudent ? "Cá nhân" : user.role === "EMPLOYER" ? "Nhà tuyển dụng" : "Quản trị"}
+                </span>
+                {personalLinks.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className="px-2 py-1.5 rounded hover:bg-[var(--color-muted)] hover:text-[var(--color-primary)] flex items-center gap-2 text-[var(--color-foreground)]"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <Icon size={15} /> {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
             )}
           </nav>
 

@@ -7,62 +7,86 @@ const createConversation = async (req, res) => {
     try {
         const userId = req.user.id;
         const role = req.user.role;
-        const { employerId } = req.body;
+        const { employerId, studentId, studentUserId } = req.body || {};
 
-        // Chỉ sinh viên được khởi tạo cuộc trò chuyện
-        if (role !== "STUDENT") {
-            return res.status(403).json({
-                message: "Chỉ sinh viên được bắt đầu cuộc trò chuyện"
-            });
-        }
+        if (role === "STUDENT") {
+            if (!Number.isSafeInteger(employerId) || employerId <= 0) {
+                return res.status(400).json({
+                    message: "employerId không hợp lệ"
+                });
+            }
 
-        // Kiểm tra employerId
-        if (
-            !Number.isSafeInteger(employerId) ||
-            employerId <= 0
-        ) {
-            return res.status(400).json({
-                message: "employerId không hợp lệ"
-            });
-        }
+            const [students] = await pool.execute(
+                `SELECT id FROM student_profiles WHERE user_id = ?`,
+                [userId]
+            );
+            if (students.length === 0) {
+                return res.status(404).json({ message: "Không tìm thấy hồ sơ sinh viên" });
+            }
 
-        // Tìm hồ sơ sinh viên từ tài khoản đăng nhập
-        const [students] = await pool.execute(
-            `SELECT id FROM student_profiles
-             WHERE user_id = ?`,
-            [userId]
-        );
+            const [employers] = await pool.execute(
+                `SELECT id FROM employer_profiles WHERE id = ?`,
+                [employerId]
+            );
+            if (employers.length === 0) {
+                return res.status(404).json({ message: "Không tìm thấy nhà tuyển dụng" });
+            }
 
-        if (students.length === 0) {
-            return res.status(404).json({
-                message: "Không tìm thấy hồ sơ sinh viên"
-            });
-        }
-
-        // Kiểm tra hồ sơ nhà tuyển dụng tồn tại
-        const [employers] = await pool.execute(
-            `SELECT id FROM employer_profiles
-             WHERE id = ?`,
-            [employerId]
-        );
-
-        if (employers.length === 0) {
-            return res.status(404).json({
-                message: "Không tìm thấy nhà tuyển dụng"
-            });
-        }
-
-        const conversationId =
-            await chatModel.findOrCreateConversation(
+            const conversationId = await chatModel.findOrCreateConversation(
                 students[0].id,
                 employerId
             );
 
-        return res.status(200).json({
-            message: "Cuộc trò chuyện đã sẵn sàng",
-            conversationId
-        });
+            return res.status(200).json({
+                message: "Cuộc trò chuyện đã sẵn sàng",
+                conversationId
+            });
+        }
 
+        if (role === "EMPLOYER") {
+            const [employers] = await pool.execute(
+                `SELECT id FROM employer_profiles WHERE user_id = ?`,
+                [userId]
+            );
+            if (employers.length === 0) {
+                return res.status(404).json({ message: "Không tìm thấy hồ sơ nhà tuyển dụng" });
+            }
+
+            let targetStudentProfileId = null;
+            if (Number.isSafeInteger(studentUserId) && studentUserId > 0) {
+                const [students] = await pool.execute(
+                    `SELECT id FROM student_profiles WHERE user_id = ?`,
+                    [studentUserId]
+                );
+                if (students.length > 0) targetStudentProfileId = students[0].id;
+            } else if (Number.isSafeInteger(studentId) && studentId > 0) {
+                const [students] = await pool.execute(
+                    `SELECT id FROM student_profiles WHERE id = ?`,
+                    [studentId]
+                );
+                if (students.length > 0) targetStudentProfileId = students[0].id;
+            } else {
+                return res.status(400).json({ message: "studentUserId hoặc studentId không hợp lệ" });
+            }
+
+            if (!targetStudentProfileId) {
+                return res.status(404).json({ message: "Không tìm thấy hồ sơ sinh viên" });
+            }
+
+            const conversationId = await chatModel.findOrCreateConversation(
+                targetStudentProfileId,
+                employers[0].id
+            );
+
+            return res.status(200).json({
+                message: "Cuộc trò chuyện đã sẵn sàng",
+                conversationId
+            });
+        }
+
+        return res.status(403).json({
+            message: "Chỉ sinh viên hoặc nhà tuyển dụng mới được bắt đầu cuộc trò chuyện"
+        });
     } catch (error) {
         console.error("Create conversation error:", error);
 

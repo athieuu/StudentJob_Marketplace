@@ -18,7 +18,18 @@ const chatRoutes = require("./routes/chatRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ORIGIN || process.env.CLIENT_URL || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+app.use(
+    cors(
+        allowedOrigins.length > 0
+            ? { origin: allowedOrigins, credentials: true }
+            : undefined
+    )
+);
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);

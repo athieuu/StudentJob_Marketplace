@@ -15,11 +15,11 @@ const {
     sendMessage
 } = require("../controllers/chatController");
 
-// Sinh viên tạo hoặc tìm cuộc trò chuyện
+// Sinh viên hoặc nhà tuyển dụng tạo hoặc tìm cuộc trò chuyện
 router.post(
     "/conversations",
     authenticateToken,
-    authorizeRole("STUDENT"),
+    authorizeRole("STUDENT", "EMPLOYER"),
     createConversation
 );
 

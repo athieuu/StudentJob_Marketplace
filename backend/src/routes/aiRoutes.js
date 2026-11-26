@@ -27,6 +27,8 @@ router.use(authenticateToken);
 router.use(authorizeRole('STUDENT'));
 
 router.post('/cv/analyze', upload.single('file'), aiController.analyzeCV);
+router.get('/cv/history', aiController.getCvHistory);
+router.delete('/cv/history/:id', aiController.deleteCvHistory);
 router.post('/cv/feedback', aiController.feedbackCV);
 router.post('/cv/assist', aiController.assistCV);
 router.post('/jobs/:id/fit', aiController.assessJobFit);
