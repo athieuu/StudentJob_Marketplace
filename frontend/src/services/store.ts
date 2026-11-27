@@ -5,6 +5,9 @@ let jobCache: Job[] = [];
 let applicationCache: Application[] = [];
 let reviewCache: Review[] = [];
 let jobLoadVersion = 0;
+let sessionEpoch = 0;
+let applicationListVersion = 0;
+const jobApplicationVersions = new Map<string, number>();
 const notifyData = () => window.dispatchEvent(new Event('sj:data-updated'));
 const textList = (value: unknown, separator: RegExp): string[] =>
   Array.isArray(value) ? value : typeof value === 'string' ? value.split(separator).map(s => s.trim()).filter(Boolean) : [];
@@ -66,6 +69,9 @@ function saveSession(user: User | null) {
     jobCache = [];
     applicationCache = [];
     jobLoadVersion++;
+    sessionEpoch++;
+    applicationListVersion++;
+    jobApplicationVersions.clear();
   }
   if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   else localStorage.removeItem(SESSION_KEY);
@@ -163,6 +169,7 @@ export const jobService = {
   async load() {
     const session = readSession();
     const identity = sessionKey(session);
+    const epoch = sessionEpoch;
     const version = ++jobLoadVersion;
     let rows: Record<string, any>[];
     if (session?.role === 'EMPLOYER') {
@@ -170,7 +177,7 @@ export const jobService = {
         const result = await api.jobs.mine();
         rows = result.data;
       } catch (error) {
-        if (identity === sessionKey(readSession()) && version === jobLoadVersion) {
+        if (identity === sessionKey(readSession()) && epoch === sessionEpoch && version === jobLoadVersion) {
           jobCache = [];
           applicationCache = [];
           notifyData();
@@ -189,7 +196,7 @@ export const jobService = {
         }
       }
     }
-    if (identity !== sessionKey(readSession()) || version !== jobLoadVersion) return jobCache;
+    if (identity !== sessionKey(readSession()) || epoch !== sessionEpoch || version !== jobLoadVersion) return jobCache;
     const uniqueRows = [...new Map(rows.map(row => [String(row.id), row])).values()];
     jobCache = uniqueRows.map(mapJob);
 
@@ -248,11 +255,13 @@ export const applicationService = {
 
 async loadAllAdmin() {
   const identity = sessionKey(readSession());
+  const epoch = sessionEpoch;
+  const version = ++applicationListVersion;
   const result = await api.admin.allApplications();
   const loaded = result.data.map((row: any) =>
     mapApplication(row)
   );
-  if (identity === sessionKey(readSession())) {
+  if (identity === sessionKey(readSession()) && epoch === sessionEpoch && version === applicationListVersion) {
     applicationCache = loaded;
     notifyData();
   }
@@ -267,9 +276,11 @@ async loadAllAdmin() {
   async loadMine() {
     const current = readSession();
     const identity = sessionKey(current);
+    const epoch = sessionEpoch;
+    const version = ++applicationListVersion;
     const result = await api.applications.mine();
     const loaded = result.data.map((row: any) => mapApplication(row, current?.id));
-    if (identity === sessionKey(readSession())) {
+    if (identity === sessionKey(readSession()) && epoch === sessionEpoch && version === applicationListVersion) {
       applicationCache = loaded;
       notifyData();
     }
@@ -278,17 +289,20 @@ async loadAllAdmin() {
   async loadByJob(jobId: string) {
     const identity = sessionKey(readSession());
     const version = jobLoadVersion;
+    const epoch = sessionEpoch;
+    const request = (jobApplicationVersions.get(jobId) || 0) + 1;
+    jobApplicationVersions.set(jobId, request);
     try {
       const result = await api.applications.byJob(jobId);
       const loaded = result.data.map((row: any) => mapApplication(row));
-      if (identity === sessionKey(readSession()) && version === jobLoadVersion) {
+      if (identity === sessionKey(readSession()) && epoch === sessionEpoch && version === jobLoadVersion && jobApplicationVersions.get(jobId) === request) {
         const others = applicationCache.filter(app => app.jobId !== String(jobId));
         applicationCache = [...others, ...loaded];
         notifyData();
       }
       return loaded;
     } catch (error) {
-      if (identity === sessionKey(readSession()) && version === jobLoadVersion) {
+      if (identity === sessionKey(readSession()) && epoch === sessionEpoch && version === jobLoadVersion && jobApplicationVersions.get(jobId) === request) {
         applicationCache = applicationCache.filter(app => app.jobId !== String(jobId));
         notifyData();
       }
