@@ -28,3 +28,17 @@ Before live changes, repeat the server, project, container, volume, employer and
 count checks and ensure the backup remains appropriate for the current state.
 Do not restart the live database, automatically roll back destructively, or touch
 other services. On failure, stop relevant StudentJob writers safely and report it.
+
+The locally staged privacy-only backend image is
+`sha256:900c78baa121c1a72e206c54801a9118ac32bc0c69521cb640a0180917a35c3a`.
+It derives from the running item34 backend and was tested against an isolated
+001–008 database: the public jobs endpoint returned 200 and both seed jobs.
+The compatible backend and retained post-import recovery image is
+`sha256:5a432fc5114d647892cbb754ea18b06279f55c0d8df6e190ed53f14388bf829b`.
+Against the isolated migrated database it returned 152 jobs including 14
+internships, hid fingerprints, reported an existing applicant count and accepted
+an unchanged internship edit. Its four safety-file hashes match the running
+backend. The final locally staged frontend image is
+`sha256:c7ea857aca7f0fc55212c01821a59687ea7d59d8d19a65f563624dcec54ba6c3`;
+its nginx check, jobs route and proxy to the isolated API passed. These local
+images are not evidence of deployment to the VPS.
