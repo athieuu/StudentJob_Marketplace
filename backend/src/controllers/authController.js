@@ -105,6 +105,9 @@ const login = async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: "Email hoặc mật khẩu không chính xác" });
         }
+        if (user.status === "BLOCKED") {
+            return res.status(403).json({ message: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên." });
+        }
         if (!process.env.JWT_SECRET) return res.status(500).json({ message: "Server chưa được cấu hình xác thực" });
         const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1d" });
         return res.status(200).json({

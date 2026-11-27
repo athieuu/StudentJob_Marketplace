@@ -1,4 +1,6 @@
 
+const bcrypt = require("bcryptjs");
+const db = require("../config/db");
 const {
     getProfileByUserId,
     updateProfile
@@ -109,4 +111,61 @@ const editProfile = async (req, res) => {
     }
 };
 
-module.exports = { getProfile, editProfile };
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body || {};
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                message: "Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới"
+            });
+        }
+
+        if (typeof newPassword !== "string" || newPassword.length < 8) {
+            return res.status(400).json({
+                message: "Mật khẩu mới phải có ít nhất 8 ký tự"
+            });
+        }
+
+        if (currentPassword === newPassword) {
+            return res.status(400).json({
+                message: "Mật khẩu mới phải khác mật khẩu hiện tại"
+            });
+        }
+
+        const [rows] = await db.execute(
+            "SELECT id, password FROM users WHERE id = ? LIMIT 1",
+            [req.user.id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                message: "Không tìm thấy tài khoản"
+            });
+        }
+
+        const matches = await bcrypt.compare(String(currentPassword), rows[0].password);
+        if (!matches) {
+            return res.status(400).json({
+                message: "Mật khẩu hiện tại không chính xác"
+            });
+        }
+
+        const newHash = await bcrypt.hash(newPassword, 10);
+        await db.execute(
+            "UPDATE users SET password = ? WHERE id = ?",
+            [newHash, req.user.id]
+        );
+
+        return res.status(200).json({
+            message: "Đổi mật khẩu thành công"
+        });
+    } catch (error) {
+        console.error("Change password error:", error);
+        return res.status(500).json({
+            message: "Không thể đổi mật khẩu lúc này"
+        });
+    }
+};
+
+module.exports = { getProfile, editProfile, changePassword };

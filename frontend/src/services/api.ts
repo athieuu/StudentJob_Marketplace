@@ -126,6 +126,19 @@ export const api = {
         },
         true
       ),
+
+    changePassword: (payload: {
+      currentPassword: string;
+      newPassword: string;
+    }) =>
+      apiRequest<{ message: string }>(
+        '/profile/password',
+        {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        },
+        true
+      ),
   },
 
   
@@ -224,6 +237,60 @@ users: () =>
   apiRequest<{ data: Record<string, any>[] }>(
     '/admin/users',
     {},
+    true
+  ),
+
+createUser: (payload: {
+  email: string;
+  password: string;
+  role: 'STUDENT' | 'EMPLOYER' | 'ADMIN';
+  status?: 'ACTIVE' | 'BLOCKED';
+  name?: string;
+  company_name?: string;
+  phone?: string;
+  university?: string;
+  major?: string;
+  address?: string;
+}) =>
+  apiRequest<{ message: string; data: Record<string, any> }>(
+    '/admin/users',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    true
+  ),
+
+updateUser: (
+  id: string,
+  payload: {
+    email?: string;
+    password?: string;
+    role?: 'STUDENT' | 'EMPLOYER' | 'ADMIN';
+    status?: 'ACTIVE' | 'BLOCKED';
+    name?: string;
+    company_name?: string;
+    phone?: string;
+    university?: string;
+    major?: string;
+    address?: string;
+  }
+) =>
+  apiRequest<{ message: string; data: Record<string, any> }>(
+    `/admin/users/${id}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    },
+    true
+  ),
+
+deleteUser: (id: string) =>
+  apiRequest<{ message: string; data: { id: number } }>(
+    `/admin/users/${id}`,
+    {
+      method: 'DELETE'
+    },
     true
   ),
 

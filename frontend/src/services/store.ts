@@ -88,8 +88,6 @@ users: () => userCache,
 async loadUsers(): Promise<User[]> {
   const result = await api.admin.users();
 
-  console.log("API ADMIN USERS:", result);
-
   userCache = result.data.map((row: any): User => ({
     id: String(row.id),
     name: row.name || row.full_name || row.company_name || row.email,
@@ -100,6 +98,7 @@ async loadUsers(): Promise<User[]> {
     phone: row.phone || "",
     university: row.university || "",
     major: row.major || "",
+    address: row.address || "",
     joinedAt: row.created_at
       ? String(row.created_at).slice(0, 10)
       : "",
@@ -340,6 +339,79 @@ async toggleStatus(id: string): Promise<User> {
 
   notifyData();
   return updated;
+},
+
+async create(payload: {
+  email: string;
+  password: string;
+  role: 'STUDENT' | 'EMPLOYER' | 'ADMIN';
+  status?: 'ACTIVE' | 'BLOCKED';
+  name?: string;
+  company_name?: string;
+  phone?: string;
+  university?: string;
+  major?: string;
+  address?: string;
+}): Promise<User> {
+  const res = await api.admin.createUser(payload);
+  const row = res.data;
+  const created: User = {
+    id: String(row.id),
+    name: row.name || row.full_name || row.company_name || row.email,
+    email: row.email,
+    role: row.role,
+    status: row.status === 'BLOCKED' ? 'BLOCKED' : 'ACTIVE',
+    company: row.company_name || '',
+    phone: row.phone || '',
+    university: row.university || '',
+    major: row.major || '',
+    address: row.address || '',
+    joinedAt: row.created_at ? String(row.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10),
+  };
+  userCache = [created, ...userCache];
+  notifyData();
+  return created;
+},
+
+async update(
+  id: string,
+  payload: {
+    email?: string;
+    password?: string;
+    role?: 'STUDENT' | 'EMPLOYER' | 'ADMIN';
+    status?: 'ACTIVE' | 'BLOCKED';
+    name?: string;
+    company_name?: string;
+    phone?: string;
+    university?: string;
+    major?: string;
+    address?: string;
+  }
+): Promise<User> {
+  const res = await api.admin.updateUser(id, payload);
+  const row = res.data;
+  const updated: User = {
+    id: String(row.id),
+    name: row.name || row.full_name || row.company_name || row.email,
+    email: row.email,
+    role: row.role,
+    status: row.status === 'BLOCKED' ? 'BLOCKED' : 'ACTIVE',
+    company: row.company_name || '',
+    phone: row.phone || '',
+    university: row.university || '',
+    major: row.major || '',
+    address: row.address || '',
+    joinedAt: row.created_at ? String(row.created_at).slice(0, 10) : '',
+  };
+  userCache = userCache.map((u) => (u.id === id ? updated : u));
+  notifyData();
+  return updated;
+},
+
+async remove(id: string): Promise<void> {
+  await api.admin.deleteUser(id);
+  userCache = userCache.filter((u) => u.id !== id);
+  notifyData();
 },
 
 };

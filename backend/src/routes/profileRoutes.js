@@ -7,10 +7,12 @@ const { authenticateToken } =
 
 const {
     getProfile,
-    editProfile
+    editProfile,
+    changePassword
 } = require("../controllers/profileController");
 
 router.get("/", authenticateToken, getProfile);
 router.put("/", authenticateToken, editProfile);
+router.put("/password", authenticateToken, changePassword);
 
 module.exports = router;
