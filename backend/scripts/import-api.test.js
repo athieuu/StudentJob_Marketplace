@@ -28,7 +28,9 @@ test('imported internships are visible, editable and hide their fingerprints', a
     const job = jobs.find(j => j.job_type === 'INTERNSHIP');
     assert.ok(job.category && job.work_mode && job.responsibilities && job.requirements && job.skills);
     assert.ok(!('import_fingerprint' in await get(`/jobs/${job.id}`)));
-    assert.ok((await get('/jobs/mine', employerToken)).some(j => j.id === job.id && !('import_fingerprint' in j)));
+    const mine = await get('/jobs/mine', employerToken);
+    assert.ok(mine.some(j => j.id === job.id && !('import_fingerprint' in j)));
+    assert.equal(Number(mine.find(j => j.id === 1).applicant_count), 1);
     assert.ok((await get('/admin/jobs/pending', adminToken)).every(j => !('import_fingerprint' in j)));
     const forgedAdmin = jwt.sign({ id: 2, role: 'ADMIN' }, process.env.JWT_SECRET);
     assert.equal((await fetch(`${base}/admin/users`, { headers: { Authorization: `Bearer ${forgedAdmin}` } })).status, 401);

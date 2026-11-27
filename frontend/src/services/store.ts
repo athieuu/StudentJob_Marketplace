@@ -174,9 +174,9 @@ export const jobService = {
     const uniqueRows = [...new Map(rows.map(row => [String(row.id), row])).values()];
     jobCache = uniqueRows.map(mapJob);
 
-    // Load each employer-owned job's applications so dashboard/listing totals are accurate.
+    // Fetch details only for jobs with applications; counts arrive with the list.
     if (session?.role === 'EMPLOYER') {
-      await Promise.all(jobCache.map(job => applicationService.loadByJob(job.id).catch(error => {
+      await Promise.all(jobCache.filter(job => job.applicants > 0).map(job => applicationService.loadByJob(job.id).catch(error => {
         console.error(`Could not load applications for job ${job.id}`, error);
       })));
     }

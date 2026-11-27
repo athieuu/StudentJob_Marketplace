@@ -48,7 +48,8 @@ const getAllJobs = async () => {
 const getJobsByEmployerUserId = async (userId) => {
     const [rows] = await db.execute(
         `SELECT j.*, ep.company_name,
-                ep.user_id AS employer_user_id
+                ep.user_id AS employer_user_id,
+                (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicant_count
          FROM jobs j
          INNER JOIN employer_profiles ep
             ON j.employer_id = ep.id

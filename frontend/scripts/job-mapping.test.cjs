@@ -27,4 +27,10 @@ test('imported job fields display and unrelated edits preserve their original va
   assert.deepEqual(job.responsibilities, ['Một', 'Hai']);
   await service.save({ ...job, title: 'Updated title' });
   for (const key of ['category', 'work_mode', 'responsibilities', 'requirements', 'skills']) assert.ok(!(key in payload), key);
+  const paths = [];
+  global.localStorage.getItem = key => key === 'sj_session' ? JSON.stringify({ id: '2', role: 'EMPLOYER' }) : null;
+  global.fetch = async url => { paths.push(String(url)); return { ok: true, status: 200, json: async () => ({ data: [{ ...row, applicant_count: 0 }] }) }; };
+  await service.load();
+  assert.equal(paths.length, 1);
+  assert.ok(paths[0].endsWith('/jobs/mine'));
 });
