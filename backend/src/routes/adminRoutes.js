@@ -18,7 +18,10 @@ const {
 
 const {
     listUsers,
-    changeUserStatus
+    createUser,
+    updateUser,
+    changeUserStatus,
+    deleteUser
 } = require("../controllers/adminUserController");
 
 // Chỉ ADMIN được truy cập
@@ -30,6 +33,9 @@ router.patch("/jobs/:id/moderation", moderateJob);
 
 // Quản lý người dùng
 router.get("/users", listUsers);
+router.post("/users", createUser);
+router.put("/users/:id", updateUser);
 router.patch("/users/:id/status", changeUserStatus);
+router.delete("/users/:id", deleteUser);
 router.get("/applications", listAllApplications);
 module.exports = router;

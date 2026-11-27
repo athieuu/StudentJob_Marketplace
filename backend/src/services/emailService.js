@@ -2,9 +2,12 @@ const nodemailer = require("nodemailer");
 
 let transporter;
 
+const hasSmtpConfig = () =>
+    Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+
 const getTransporter = () => {
     if (transporter) return transporter;
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    if (!hasSmtpConfig()) {
         throw new Error("SMTP chưa được cấu hình trong file .env");
     }
     transporter = nodemailer.createTransport({
@@ -18,6 +21,17 @@ const getTransporter = () => {
 
 const sendEmail = async ({ to, subject, text, html }) => {
     if (!to) throw new Error("Email người nhận không được để trống");
+
+    if (!hasSmtpConfig() && process.env.NODE_ENV !== "production") {
+        console.warn("==================================================");
+        console.warn("[DEV EMAIL FALLBACK - SMTP chưa được cấu hình]");
+        console.warn(`To: ${to}`);
+        console.warn(`Subject: ${subject}`);
+        console.warn(`Text: ${text}`);
+        console.warn("==================================================");
+        return { accepted: [to], devFallback: true };
+    }
+
     return getTransporter().sendMail({
         from: process.env.EMAIL_FROM || process.env.SMTP_USER,
         to, subject, text, html

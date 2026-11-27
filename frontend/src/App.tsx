@@ -2919,6 +2919,31 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
                       </Link>
                     </>
                   )}
+                  {role === "ADMIN" && (
+                    <>
+                      <Link
+                        to="/admin/users"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)]"
+                      >
+                        <Users size={14} /> Quản lý người dùng
+                      </Link>
+                      <Link
+                        to="/admin/jobs"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)]"
+                      >
+                        <ShieldCheck size={14} /> Duyệt tin tuyển dụng
+                      </Link>
+                      <Link
+                        to="/admin/applications"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-background)] hover:text-[var(--color-primary)]"
+                      >
+                        <ClipboardList size={14} /> Đơn ứng tuyển
+                      </Link>
+                    </>
+                  )}
                   <Link
                     to="/"
                     onClick={() => setProfileOpen(false)}
@@ -4286,6 +4311,10 @@ function StudentProfile() {
               </div>
             )}
           </form>
+
+          <div className="pt-2">
+            <ChangePasswordCard />
+          </div>
         </section>
 
         <aside className="lg:col-span-1 space-y-6">
@@ -4351,6 +4380,99 @@ function StudentProfile() {
     </div>
   );
 }
+function ChangePasswordCard() {
+  const toast = useToast();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (saving) return;
+
+    if (newPassword.length < 8) {
+      toast("Mật khẩu mới phải có ít nhất 8 ký tự", "error");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast("Xác nhận mật khẩu mới không khớp", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await api.profile.changePassword({ currentPassword, newPassword });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast("Đổi mật khẩu thành công");
+    } catch (err) {
+      toast(
+        err instanceof Error ? err.message : "Không thể đổi mật khẩu",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 space-y-5">
+      <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
+        <div>
+          <h2 className="text-base font-bold text-[var(--color-foreground)]">
+            Đổi mật khẩu
+          </h2>
+          <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+            Cập nhật mật khẩu định kỳ để bảo vệ tài khoản của bạn.
+          </p>
+        </div>
+        <ShieldCheck size={18} className="text-[var(--color-primary)] shrink-0" />
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Field label="Mật khẩu hiện tại *">
+            <SharedInput
+              type="password"
+              required
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Nhập mật khẩu cũ"
+            />
+          </Field>
+          <Field label="Mật khẩu mới *">
+            <SharedInput
+              type="password"
+              required
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Tối thiểu 8 ký tự"
+            />
+          </Field>
+          <Field label="Xác nhận mật khẩu mới *">
+            <SharedInput
+              type="password"
+              required
+              minLength={8}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Nhập lại mật khẩu mới"
+            />
+          </Field>
+        </div>
+        <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
+          <Button variant="primary" size="md" type="submit" disabled={saving}>
+            <ShieldCheck size={15} /> {saving ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
 function Field({
   label,
   children,
@@ -5195,6 +5317,8 @@ function EmployerProfile() {
           </div>
         </form>
       </section>
+
+      <ChangePasswordCard />
     </div>
   );
 }
@@ -6737,11 +6861,25 @@ function AdminDashboard() {
 
 function AdminUsers() {
   const toast = useToast();
+  const { user: currentUser } = useContext(AuthContext);
 
   const [q, setQ] = useState("");
   const [role, setRole] = useState("ALL");
   const [status, setStatus] = useState("ALL");
   const [confirm, setConfirm] = useState<User | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formEmail, setFormEmail] = useState("");
+  const [formPassword, setFormPassword] = useState("");
+  const [formRole, setFormRole] = useState<Role>("STUDENT");
+  const [formStatus, setFormStatus] = useState<"ACTIVE" | "BLOCKED">("ACTIVE");
+  const [formName, setFormName] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formUniversity, setFormUniversity] = useState("");
+  const [formMajor, setFormMajor] = useState("");
+  const [formAddress, setFormAddress] = useState("");
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -6778,6 +6916,117 @@ function AdminUsers() {
       cancelled = true;
     };
   }, []);
+
+  const openCreateModal = () => {
+    setEditingUser(null);
+    setFormEmail("");
+    setFormPassword("");
+    setFormRole("STUDENT");
+    setFormStatus("ACTIVE");
+    setFormName("");
+    setFormPhone("");
+    setFormUniversity("");
+    setFormMajor("");
+    setFormAddress("");
+    setFormOpen(true);
+  };
+
+  const openEditModal = (u: User) => {
+    setEditingUser(u);
+    setFormEmail(u.email);
+    setFormPassword("");
+    setFormRole(u.role);
+    setFormStatus(u.status);
+    setFormName(u.role === "EMPLOYER" ? u.company || u.name : u.name);
+    setFormPhone(u.phone || "");
+    setFormUniversity(u.university || "");
+    setFormMajor(u.major || "");
+    setFormAddress(u.address || "");
+    setFormOpen(true);
+  };
+
+  const handleSaveUser = async (e: FormEvent) => {
+    e.preventDefault();
+    if (saving) return;
+
+    if (!formEmail.trim()) {
+      toast("Vui lòng nhập địa chỉ email", "error");
+      return;
+    }
+
+    if (!editingUser && formPassword.length < 6) {
+      toast("Mật khẩu phải có ít nhất 6 ký tự", "error");
+      return;
+    }
+
+    if (editingUser && formPassword && formPassword.length < 6) {
+      toast("Mật khẩu mới phải có ít nhất 6 ký tự", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (editingUser) {
+        const updated = await userService.update(editingUser.id, {
+          email: formEmail.trim(),
+          ...(formPassword ? { password: formPassword } : {}),
+          role: formRole,
+          status: formStatus,
+          name: formName.trim(),
+          ...(formRole === "EMPLOYER" ? { company_name: formName.trim() } : {}),
+          phone: formPhone.trim(),
+          university: formUniversity.trim(),
+          major: formMajor.trim(),
+          address: formAddress.trim(),
+        });
+        setUsers((current) =>
+          current.map((item) => (item.id === updated.id ? updated : item)),
+        );
+        toast("Đã cập nhật tài khoản thành công");
+      } else {
+        const created = await userService.create({
+          email: formEmail.trim(),
+          password: formPassword,
+          role: formRole,
+          status: formStatus,
+          name: formName.trim(),
+          ...(formRole === "EMPLOYER" ? { company_name: formName.trim() } : {}),
+          phone: formPhone.trim(),
+          university: formUniversity.trim(),
+          major: formMajor.trim(),
+          address: formAddress.trim(),
+        });
+        setUsers((current) => [created, ...current]);
+        toast("Đã tạo tài khoản mới thành công");
+      }
+      setFormOpen(false);
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Không thể lưu thông tin tài khoản",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget || saving) return;
+    setSaving(true);
+    try {
+      await userService.remove(deleteTarget.id);
+      setUsers((current) => current.filter((u) => u.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      toast("Đã xóa tài khoản thành công");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Không thể xóa tài khoản",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const filteredUsers = users.filter(
     (u) =>
@@ -6824,7 +7073,12 @@ function AdminUsers() {
       <PageHeader
         eyebrow="QUẢN LÝ CỘNG ĐỒNG"
         title="Quản lý người dùng"
-        subtitle="Kiểm tra tài khoản sinh viên, nhà tuyển dụng và giữ an toàn cho hệ thống."
+        subtitle="Thêm mới, chỉnh sửa, khóa hoặc xóa tài khoản sinh viên và nhà tuyển dụng."
+        action={
+          <Button variant="primary" size="md" onClick={openCreateModal}>
+            <Plus size={15} /> Thêm tài khoản
+          </Button>
+        }
       />
 
       {loading && (
@@ -6970,27 +7224,45 @@ function AdminUsers() {
                       >
                         <Eye size={14} />
                       </Link>
-                      {u.role !== "ADMIN" && (
-                        <button
-                          type="button"
-                          className={`p-2 rounded-lg border transition-colors duration-150 cursor-pointer ${
-                            u.status === "ACTIVE"
-                              ? "border-rose-200 text-rose-600 hover:bg-rose-50"
-                              : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                          }`}
-                          title={
-                            u.status === "ACTIVE"
-                              ? "Khóa tài khoản"
-                              : "Mở khóa tài khoản"
-                          }
-                          onClick={() => setConfirm(u)}
-                        >
-                          {u.status === "ACTIVE" ? (
-                            <Ban size={14} />
-                          ) : (
-                            <CircleCheck size={14} />
-                          )}
-                        </button>
+                      <button
+                        type="button"
+                        className="p-2 rounded-lg border border-sky-200 text-[var(--color-primary)] hover:bg-sky-50 transition-colors duration-150 cursor-pointer"
+                        title="Chỉnh sửa tài khoản"
+                        onClick={() => openEditModal(u)}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      {u.role !== "ADMIN" && u.id !== currentUser?.id && (
+                        <>
+                          <button
+                            type="button"
+                            className={`p-2 rounded-lg border transition-colors duration-150 cursor-pointer ${
+                              u.status === "ACTIVE"
+                                ? "border-amber-200 text-amber-600 hover:bg-amber-50"
+                                : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                            title={
+                              u.status === "ACTIVE"
+                                ? "Khóa tài khoản"
+                                : "Mở khóa tài khoản"
+                            }
+                            onClick={() => setConfirm(u)}
+                          >
+                            {u.status === "ACTIVE" ? (
+                              <Ban size={14} />
+                            ) : (
+                              <CircleCheck size={14} />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors duration-150 cursor-pointer"
+                            title="Xóa tài khoản"
+                            onClick={() => setDeleteTarget(u)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -7009,6 +7281,157 @@ function AdminUsers() {
           </div>
         )}
       </section>
+
+      {formOpen && (
+        <Modal
+          title={editingUser ? "Chỉnh sửa tài khoản" : "Thêm tài khoản mới"}
+          onClose={() => setFormOpen(false)}
+        >
+          <form onSubmit={handleSaveUser} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                  Vai trò
+                </label>
+                <SharedSelect
+                  value={formRole}
+                  disabled={Boolean(editingUser && editingUser.id === currentUser?.id)}
+                  onChange={(e) => setFormRole(e.target.value as Role)}
+                >
+                  <option value="STUDENT">Sinh viên</option>
+                  <option value="EMPLOYER">Nhà tuyển dụng</option>
+                  <option value="ADMIN">Quản trị viên</option>
+                </SharedSelect>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                  Trạng thái
+                </label>
+                <SharedSelect
+                  value={formStatus}
+                  disabled={formRole === "ADMIN"}
+                  onChange={(e) =>
+                    setFormStatus(e.target.value as "ACTIVE" | "BLOCKED")
+                  }
+                >
+                  <option value="ACTIVE">Đang hoạt động</option>
+                  <option value="BLOCKED">Đã khóa</option>
+                </SharedSelect>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                Email <span className="text-rose-500">*</span>
+              </label>
+              <SharedInput
+                type="email"
+                required
+                value={formEmail}
+                onChange={(e) => setFormEmail(e.target.value)}
+                placeholder="example@studentjob.vn"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                {editingUser ? "Mật khẩu mới (để trống nếu giữ nguyên)" : "Mật khẩu *"}
+              </label>
+              <SharedInput
+                type="password"
+                required={!editingUser}
+                minLength={6}
+                value={formPassword}
+                onChange={(e) => setFormPassword(e.target.value)}
+                placeholder="Tối thiểu 6 ký tự"
+              />
+            </div>
+
+            {formRole !== "ADMIN" && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                      {formRole === "EMPLOYER" ? "Tên công ty" : "Họ và tên"}
+                    </label>
+                    <SharedInput
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder={
+                        formRole === "EMPLOYER" ? "Công ty TNHH ABC" : "Nguyễn Văn A"
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                      Số điện thoại
+                    </label>
+                    <SharedInput
+                      value={formPhone}
+                      onChange={(e) => setFormPhone(e.target.value)}
+                      placeholder="09xx xxx xxx"
+                    />
+                  </div>
+                </div>
+
+                {formRole === "STUDENT" ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                        Trường học
+                      </label>
+                      <SharedInput
+                        value={formUniversity}
+                        onChange={(e) => setFormUniversity(e.target.value)}
+                        placeholder="ĐH Bách Khoa..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                        Chuyên ngành
+                      </label>
+                      <SharedInput
+                        value={formMajor}
+                        onChange={(e) => setFormMajor(e.target.value)}
+                        placeholder="Công nghệ thông tin"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1">
+                      Địa chỉ công ty
+                    </label>
+                    <SharedInput
+                      value={formAddress}
+                      onChange={(e) => setFormAddress(e.target.value)}
+                      placeholder="Quận 1, TP.HCM"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[var(--color-border)]">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setFormOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={saving}>
+                {saving
+                  ? "Đang lưu..."
+                  : editingUser
+                    ? "Lưu thay đổi"
+                    : "Tạo tài khoản"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {confirm && (
         <Modal
@@ -7041,13 +7464,73 @@ function AdminUsers() {
           </div>
         </Modal>
       )}
+
+      {deleteTarget && (
+        <Modal
+          title="Xóa tài khoản vĩnh viễn?"
+          onClose={() => setDeleteTarget(null)}
+        >
+          <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+            Bạn có chắc chắn muốn xóa tài khoản{" "}
+            <b className="text-[var(--color-foreground)]">{deleteTarget.name}</b> (
+            {deleteTarget.email})? Thao tác này không thể hoàn tác.
+          </p>
+          <div className="flex items-center justify-end gap-2.5 pt-4 mt-4 border-t border-[var(--color-border)]">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteTarget(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteUser}
+              disabled={saving}
+            >
+              {saving ? "Đang xóa..." : "Xác nhận xóa"}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 function AdminUserDetails() {
   const { id = "" } = useParams();
-  const u = store.users().find((x) => x.id === id);
+  const navigate = useNavigate();
   const toast = useToast();
+  const [u, setU] = useState<User | undefined>(() =>
+    store.users().find((x) => x.id === id),
+  );
+  const [loading, setLoading] = useState(!u);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (u) return;
+    let cancelled = false;
+    store
+      .loadUsers()
+      .then((list) => {
+        if (!cancelled) setU(list.find((x) => x.id === id));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, u]);
+
+  if (loading)
+    return (
+      <div className="p-6 text-xs text-[var(--color-muted-foreground)]">
+        Đang tải thông tin tài khoản...
+      </div>
+    );
 
   if (!u)
     return (
@@ -7149,19 +7632,42 @@ function AdminUserDetails() {
             Quản trị viên có thể tạm khóa hoặc mở khóa quyền truy cập của tài khoản này.
           </p>
           {u.role !== "ADMIN" && (
-            <Button
-              variant={u.status === "ACTIVE" ? "destructive" : "primary"}
-              size="md"
-              fullWidth
-              onClick={async () => {
-                await userService.toggleStatus(u.id);
-                toast("Đã cập nhật trạng thái tài khoản");
-                window.location.reload();
-              }}
-            >
-              {u.status === "ACTIVE" ? <Ban size={15} /> : <Check size={15} />}
-              {u.status === "ACTIVE" ? "Khóa tài khoản" : "Mở khóa tài khoản"}
-            </Button>
+            <>
+              <Button
+                variant={u.status === "ACTIVE" ? "destructive" : "primary"}
+                size="md"
+                fullWidth
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const updated = await userService.toggleStatus(u.id);
+                    setU(updated);
+                    toast("Đã cập nhật trạng thái tài khoản");
+                  } catch (err) {
+                    toast(
+                      err instanceof Error ? err.message : "Không thể cập nhật trạng thái",
+                      "error",
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {u.status === "ACTIVE" ? <Ban size={15} /> : <Check size={15} />}
+                {u.status === "ACTIVE" ? "Khóa tài khoản" : "Mở khóa tài khoản"}
+              </Button>
+              <Button
+                variant="outline"
+                size="md"
+                fullWidth
+                disabled={busy}
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 size={15} className="text-rose-600" />
+                <span className="text-rose-600">Xóa tài khoản</span>
+              </Button>
+            </>
           )}
           <Link to="/admin/users" className="block">
             <Button variant="outline" size="md" fullWidth>
@@ -7170,6 +7676,49 @@ function AdminUserDetails() {
           </Link>
         </aside>
       </div>
+
+      {deleteOpen && (
+        <Modal
+          title="Xóa tài khoản vĩnh viễn?"
+          onClose={() => setDeleteOpen(false)}
+        >
+          <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+            Bạn có chắc chắn muốn xóa tài khoản{" "}
+            <b className="text-[var(--color-foreground)]">{u.name}</b> ({u.email})?
+          </p>
+          <div className="flex items-center justify-end gap-2.5 pt-4 mt-4 border-t border-[var(--color-border)]">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await userService.remove(u.id);
+                  toast("Đã xóa tài khoản thành công");
+                  navigate("/admin/users", { replace: true });
+                } catch (err) {
+                  toast(
+                    err instanceof Error ? err.message : "Không thể xóa tài khoản",
+                    "error",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? "Đang xóa..." : "Xác nhận xóa"}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
