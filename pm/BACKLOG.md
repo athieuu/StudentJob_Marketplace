@@ -1,5 +1,7 @@
 # Backlog
 
+> Login redirect follow-up: role-compatible return paths and public job paths are preserved; incompatible or unsafe paths fall back to the signed-in role's home. Verification and deployment evidence remain required before this work is considered complete.
+
 > Integration update 2026-11-26: combined history, parser, chat, profile and review checks are recorded in [INTEGRATION_2026-11-26.md](INTEGRATION_2026-11-26.md); this does not close PM items #9 or #20.
 
 > Update 2026-11-26: backend item #17 has a localhost-only disposable demo and authenticated smoke evidence in [DEMO_2026-11-26.md](DEMO_2026-11-26.md); this does not complete PM item #9 or resolve the AI consent and visibility gaps.

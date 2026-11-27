@@ -98,6 +98,7 @@ import { cvService } from "./services/cv";
 import { aiService } from "./services/ai";
 import type { CVAnalyzeResponse, CVHistoryItem, JobFitResult, RecommendedJobItem } from "./services/ai";
 import { chatApi } from "./services/chat";
+import { loginRedirect } from "./loginRedirect";
 
 const AuthContext = createContext<{
   user: User | null;
@@ -2040,7 +2041,7 @@ function Login() {
   if (user)
     return (
       <Navigate
-        to={user.role === "STUDENT" ? "/" : `/${user.role.toLowerCase()}/dashboard`}
+        to={loginRedirect(user.role, (location.state as { from?: unknown } | null)?.from)}
         replace
       />
     );
@@ -2088,9 +2089,7 @@ function Login() {
               }
               toast(`Chào mừng trở lại, ${u.name.split(" ")[0]}!`);
               const from = (location.state as { from?: string } | null)?.from;
-              const defaultTarget =
-                u.role === "STUDENT" ? "/" : `/${u.role.toLowerCase()}/dashboard`;
-              navigate(from || defaultTarget, {
+              navigate(loginRedirect(u.role, from), {
                 replace: true,
               });
             } catch (err) {
