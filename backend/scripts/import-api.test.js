@@ -31,7 +31,16 @@ test('imported internships are visible, editable and hide their fingerprints', a
     const mine = await get('/jobs/mine', employerToken);
     assert.ok(mine.some(j => j.id === job.id && !('import_fingerprint' in j)));
     assert.equal(Number(mine.find(j => j.id === 1).applicant_count), 1);
-    assert.ok((await get('/admin/jobs/pending', adminToken)).every(j => !('import_fingerprint' in j)));
+    assert.equal((await fetch(`${base}/jobs/mine`)).status, 401);
+    assert.equal((await fetch(`${base}/jobs/mine`, { headers: { Authorization: `Bearer ${studentToken}` } })).status, 403);
+    try {
+      await pool.execute("UPDATE jobs SET moderation_status='PENDING', import_fingerprint=? WHERE id=2", ['a'.repeat(64)]);
+      const pending = await get('/admin/jobs/pending', adminToken);
+      assert.ok(pending.some(j => j.id === 2));
+      assert.ok(pending.every(j => !('import_fingerprint' in j)));
+    } finally {
+      await pool.execute("UPDATE jobs SET moderation_status='APPROVED', import_fingerprint=NULL WHERE id=2");
+    }
     const forgedAdmin = jwt.sign({ id: 2, role: 'ADMIN' }, process.env.JWT_SECRET);
     assert.equal((await fetch(`${base}/admin/users`, { headers: { Authorization: `Bearer ${forgedAdmin}` } })).status, 401);
     assert.equal((await fetch(`${base}/admin/users/1`, { method: 'DELETE', headers: { Authorization: `Bearer ${adminToken}` } })).status, 409);
@@ -46,6 +55,13 @@ test('imported internships are visible, editable and hide their fingerprints', a
     assert.equal(response.status, 200);
     const updated = await get(`/jobs/${job.id}`);
     for (const key of ['job_type', 'category', 'work_mode', 'responsibilities', 'requirements', 'skills']) assert.equal(updated[key], job[key]);
+    const change = async value => fetch(`${base}/jobs/${job.id}`, { method: 'PUT', headers: { Authorization: `Bearer ${employerToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ responsibilities: value }) });
+    try {
+      assert.equal((await change('Synthetic editor update\nSecond line')).status, 200);
+      assert.equal((await get(`/jobs/${job.id}`)).responsibilities, 'Synthetic editor update\nSecond line');
+    } finally {
+      assert.equal((await change(job.responsibilities)).status, 200);
+    }
   } finally {
     await new Promise(resolve => server.close(resolve));
     await pool.end();

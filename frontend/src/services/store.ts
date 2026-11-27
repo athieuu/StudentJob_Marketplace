@@ -4,6 +4,7 @@ let userCache: User[] = [];
 let jobCache: Job[] = [];
 let applicationCache: Application[] = [];
 let reviewCache: Review[] = [];
+let jobLoadVersion = 0;
 const notifyData = () => window.dispatchEvent(new Event('sj:data-updated'));
 const textList = (value: unknown, separator: RegExp): string[] =>
   Array.isArray(value) ? value : typeof value === 'string' ? value.split(separator).map(s => s.trim()).filter(Boolean) : [];
@@ -59,7 +60,13 @@ function readSession(): User | null {
     return null;
   }
 }
+const sessionKey = (user: User | null) => user ? `${user.id}:${user.role}` : '';
 function saveSession(user: User | null) {
+  if (sessionKey(readSession()) !== sessionKey(user)) {
+    jobCache = [];
+    applicationCache = [];
+    jobLoadVersion++;
+  }
   if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   else localStorage.removeItem(SESSION_KEY);
 }
@@ -155,10 +162,21 @@ export const jobService = {
   byId: (id: string): Job | undefined => jobCache.find(job => job.id === id),
   async load() {
     const session = readSession();
+    const identity = sessionKey(session);
+    const version = ++jobLoadVersion;
     let rows: Record<string, any>[];
     if (session?.role === 'EMPLOYER') {
-      const result = await api.jobs.mine();
-      rows = result.data;
+      try {
+        const result = await api.jobs.mine();
+        rows = result.data;
+      } catch (error) {
+        if (identity === sessionKey(readSession()) && version === jobLoadVersion) {
+          jobCache = [];
+          applicationCache = [];
+          notifyData();
+        }
+        throw error;
+      }
     } else {
       const result = await api.jobs.all();
       rows = result.data;
@@ -171,11 +189,14 @@ export const jobService = {
         }
       }
     }
+    if (identity !== sessionKey(readSession()) || version !== jobLoadVersion) return jobCache;
     const uniqueRows = [...new Map(rows.map(row => [String(row.id), row])).values()];
     jobCache = uniqueRows.map(mapJob);
 
     // Fetch details only for jobs with applications; counts arrive with the list.
     if (session?.role === 'EMPLOYER') {
+      const populatedIds = new Set(jobCache.filter(job => job.applicants > 0).map(job => job.id));
+      applicationCache = applicationCache.filter(app => populatedIds.has(app.jobId));
       await Promise.all(jobCache.filter(job => job.applicants > 0).map(job => applicationService.loadByJob(job.id).catch(error => {
         console.error(`Could not load applications for job ${job.id}`, error);
       })));
@@ -226,35 +247,53 @@ export const jobService = {
 export const applicationService = {
 
 async loadAllAdmin() {
+  const identity = sessionKey(readSession());
   const result = await api.admin.allApplications();
-
-  applicationCache = result.data.map((row: any) =>
+  const loaded = result.data.map((row: any) =>
     mapApplication(row)
   );
-
-  notifyData();
+  if (identity === sessionKey(readSession())) {
+    applicationCache = loaded;
+    notifyData();
+  }
 
   return {
-    applications: applicationCache,
+    applications: loaded,
     statistics: result.statistics
   };
 },
 
   all: () => applicationCache,
   async loadMine() {
-    const result = await api.applications.mine();
     const current = readSession();
-    applicationCache = result.data.map((row: any) => mapApplication(row, current?.id));
-    notifyData();
-    return applicationCache;
+    const identity = sessionKey(current);
+    const result = await api.applications.mine();
+    const loaded = result.data.map((row: any) => mapApplication(row, current?.id));
+    if (identity === sessionKey(readSession())) {
+      applicationCache = loaded;
+      notifyData();
+    }
+    return loaded;
   },
   async loadByJob(jobId: string) {
-    const result = await api.applications.byJob(jobId);
-    const loaded = result.data.map((row: any) => mapApplication(row));
-    const others = applicationCache.filter(app => app.jobId !== String(jobId));
-    applicationCache = [...others, ...loaded];
-    notifyData();
-    return loaded;
+    const identity = sessionKey(readSession());
+    const version = jobLoadVersion;
+    try {
+      const result = await api.applications.byJob(jobId);
+      const loaded = result.data.map((row: any) => mapApplication(row));
+      if (identity === sessionKey(readSession()) && version === jobLoadVersion) {
+        const others = applicationCache.filter(app => app.jobId !== String(jobId));
+        applicationCache = [...others, ...loaded];
+        notifyData();
+      }
+      return loaded;
+    } catch (error) {
+      if (identity === sessionKey(readSession()) && version === jobLoadVersion) {
+        applicationCache = applicationCache.filter(app => app.jobId !== String(jobId));
+        notifyData();
+      }
+      throw error;
+    }
   },
   async apply(jobId: string, user: User, message: string) {
     return api.applications.create({ job_id: Number(jobId), cv_url: user.cvUrl || null, cover_letter: message || null });
