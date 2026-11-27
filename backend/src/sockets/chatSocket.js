@@ -5,7 +5,7 @@ const pool = require("../config/db");
 function setupChatSocket(io) {
 
     // Xác thực JWT trước khi kết nối Socket.IO
-    io.use((socket, next) => {
+    io.use(async (socket, next) => {
         try {
             const token = socket.handshake.auth.token;
 
@@ -25,6 +25,13 @@ function setupChatSocket(io) {
                 return next(new Error("Không có quyền chat"));
             }
 
+            const [rows] = await pool.execute(
+                "SELECT role, status FROM users WHERE id = ? LIMIT 1",
+                [decoded.id]
+            );
+            if (!rows[0] || rows[0].status !== "ACTIVE" || rows[0].role !== decoded.role) {
+                return next(new Error("Phiên đăng nhập không còn hợp lệ"));
+            }
             socket.user = decoded;
             next();
 
@@ -34,6 +41,23 @@ function setupChatSocket(io) {
     });
 
     io.on("connection", (socket) => {
+        socket.join(`user:${socket.user.id}`);
+        socket.use(async (_packet, next) => {
+            try {
+                const [rows] = await pool.execute(
+                    "SELECT role, status FROM users WHERE id = ? LIMIT 1",
+                    [socket.user.id]
+                );
+                if (!rows[0] || rows[0].status !== "ACTIVE" || rows[0].role !== socket.user.role) {
+                    socket.disconnect(true);
+                    return next(new Error("Phiên đăng nhập không còn hợp lệ"));
+                }
+                return next();
+            } catch (_) {
+                socket.disconnect(true);
+                return next(new Error("Không thể xác thực lúc này"));
+            }
+        });
         console.log("Chat connected:", socket.user.id);
 
         // Tham gia phòng trò chuyện

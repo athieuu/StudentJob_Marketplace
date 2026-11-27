@@ -149,6 +149,7 @@ function toggleSaved(userId: string, jobId: string): boolean {
   return next.includes(jobId);
 }
 const jobTypeVi = (type: string) => ({PART_TIME: "Bán thời gian", FULL_TIME: "Toàn thời gian", FREELANCE: "Làm tự do", INTERNSHIP: "Thực tập"} as Record<string,string>)[type] || type;
+const jobCategories = ['Technology', 'Marketing', 'Design', 'Data & Analytics', 'Education', 'Operations', 'Customer Service', 'Finance', 'Food & Beverage', 'Sales', 'Administration', 'Accounting & Finance', 'Logistics', 'Retail', 'Hospitality & Tourism', 'Events', 'Healthcare & Wellness', 'Other'];
 
 function App() {
   const [user, setUser] = useState<User | null>(() => store.session());
@@ -338,7 +339,7 @@ function Home() {
     if (featuredTab === "PART_TIME") return j.type === "PART_TIME";
     if (featuredTab === "INTERNSHIP")
       return (
-        j.title.toLowerCase().includes("thực tập") ||
+        j.type === "INTERNSHIP" || j.title.toLowerCase().includes("thực tập") ||
         j.title.toLowerCase().includes("intern")
       );
     if (featuredTab === "REMOTE")
@@ -1117,6 +1118,7 @@ function Jobs() {
                       ["ALL", "Tất cả hình thức"],
                       ["PART_TIME", "Bán thời gian (Part-time)"],
                       ["FULL_TIME", "Toàn thời gian (Full-time)"],
+                      ["INTERNSHIP", "Thực tập"],
                       ["FREELANCE", "Làm tự do (Freelance)"],
                     ].map(([v, l]) => (
                       <label
@@ -1146,15 +1148,7 @@ function Jobs() {
                     onChange={(e) => setCategory(e.target.value)}
                   >
                     <option value="ALL">Tất cả lĩnh vực</option>
-                    {[
-                      "Technology",
-                      "Marketing",
-                      "Design",
-                      "Data & Analytics",
-                      "Education",
-                      "Operations",
-                      "Customer Service",
-                    ].map((c) => (
+                    {jobCategories.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
@@ -6014,16 +6008,8 @@ function JobEditor() {
                   value={form.category}
                   onChange={(e) => change("category", e.target.value)}
                 >
-                  {[
-                    "Technology",
-                    "Marketing",
-                    "Design",
-                    "Data & Analytics",
-                    "Education",
-                    "Operations",
-                    "Customer Service",
-                    "Finance",
-                  ].map((c) => (
+                  {!jobCategories.includes(form.category) && <option value={form.category}>{form.category}</option>}
+                  {jobCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </SharedSelect>
@@ -6035,6 +6021,7 @@ function JobEditor() {
                 >
                   <option value="PART_TIME">Bán thời gian</option>
                   <option value="FULL_TIME">Toàn thời gian</option>
+                  <option value="INTERNSHIP">Thực tập</option>
                   <option value="FREELANCE">Làm tự do</option>
                 </SharedSelect>
               </Field>
@@ -6072,6 +6059,7 @@ function JobEditor() {
                   value={form.arrangement}
                   onChange={(e) => change("arrangement", e.target.value)}
                 >
+                  {!['On-site', 'Hybrid', 'Remote'].includes(form.arrangement) && <option value={form.arrangement}>{form.arrangement}</option>}
                   <option value="On-site">Tại văn phòng</option>
                   <option value="Hybrid">Kết hợp</option>
                   <option value="Remote">Làm từ xa</option>

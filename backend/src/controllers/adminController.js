@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { sendEmail } = require("../services/emailService");
+const jobView = require('../models/jobView');
 
 const getPendingJobs = async (req, res) => {
     try {
@@ -11,7 +12,7 @@ const getPendingJobs = async (req, res) => {
              WHERE j.moderation_status = 'PENDING'
              ORDER BY j.created_at ASC`
         );
-        return res.status(200).json({ data: rows });
+        return res.status(200).json({ data: rows.map(jobView) });
     } catch (error) {
         console.error("Admin get pending jobs error:", error);
         return res.status(500).json({ message: "Lỗi khi lấy danh sách tin chờ duyệt" });

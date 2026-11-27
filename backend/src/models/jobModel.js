@@ -10,14 +10,14 @@ const createJob = async (job) => {
         salary_min,
         salary_max,
         job_type,
-        deadline
+        deadline, category, work_mode, responsibilities, requirements, skills
     } = job;
 
     const [result] = await db.execute(
         `INSERT INTO jobs
         (employer_id, title, description, location,
-         salary_min, salary_max, job_type, deadline)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         salary_min, salary_max, job_type, deadline, category, work_mode, responsibilities, requirements, skills)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             employer_id,
             title,
@@ -26,7 +26,7 @@ const createJob = async (job) => {
             salary_min ?? null,
             salary_max ?? null,
             job_type,
-            deadline || null
+            deadline || null, category ?? null, work_mode ?? null, responsibilities ?? null, requirements ?? null, skills ?? null
         ]
     );
 
@@ -94,14 +94,14 @@ const updateJob = async (id, employerId, job) => {
         salary_max,
         job_type,
         deadline,
-        status
+        status, category, work_mode, responsibilities, requirements, skills
     } = job;
 
     const [result] = await db.execute(
         `UPDATE jobs
          SET title = ?, description = ?, location = ?,
              salary_min = ?, salary_max = ?, job_type = ?,
-             deadline = ?, status = ?
+             deadline = ?, status = ?, category = ?, work_mode = ?, responsibilities = ?, requirements = ?, skills = ?
          WHERE id = ? AND employer_id = ?`,
         [
             title,
@@ -111,7 +111,7 @@ const updateJob = async (id, employerId, job) => {
             salary_max ?? null,
             job_type,
             deadline || null,
-            status,
+            status, category ?? null, work_mode ?? null, responsibilities ?? null, requirements ?? null, skills ?? null,
             id,
             employerId
         ]

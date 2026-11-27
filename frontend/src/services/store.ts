@@ -5,6 +5,10 @@ let jobCache: Job[] = [];
 let applicationCache: Application[] = [];
 let reviewCache: Review[] = [];
 const notifyData = () => window.dispatchEvent(new Event('sj:data-updated'));
+const textList = (value: unknown, separator: RegExp): string[] =>
+  Array.isArray(value) ? value : typeof value === 'string' ? value.split(separator).map(s => s.trim()).filter(Boolean) : [];
+const arrangement = (value: unknown): Job['arrangement'] =>
+  value === 'Từ xa' || value === 'Remote' ? 'Remote' : value === 'Kết hợp' || value === 'Hybrid' ? 'Hybrid' : value === 'Trực tiếp' || !value ? 'On-site' : String(value);
 
 const mapJob = (row: any): Job => ({
   id: String(row.id),
@@ -17,11 +21,11 @@ const mapJob = (row: any): Job => ({
   salaryMin: Number(row.salary_min || 0),
   salaryMax: Number(row.salary_max || 0),
   location: row.location || 'Not specified',
-  arrangement: row.arrangement || 'On-site',
+  arrangement: arrangement(row.work_mode || row.arrangement),
   description: row.description || '',
-  responsibilities: Array.isArray(row.responsibilities) ? row.responsibilities : [],
-  requirements: Array.isArray(row.requirements) ? row.requirements : [],
-  skills: Array.isArray(row.skills) ? row.skills : [],
+  responsibilities: textList(row.responsibilities, /\r?\n/),
+  requirements: textList(row.requirements, /\r?\n/),
+  skills: textList(row.skills, /,/),
   deadline: row.deadline ? String(row.deadline).slice(0, 10) : '',
   postedAt: row.created_at ? String(row.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10),
   status: row.status,
@@ -181,6 +185,21 @@ export const jobService = {
     return jobCache;
   },
   async save(job: Job) {
+    const existing = jobCache.find(item => item.id === job.id);
+    const extras = {
+      category: job.category,
+      work_mode: ({ 'On-site': 'Trực tiếp', Hybrid: 'Kết hợp', Remote: 'Từ xa' } as Record<string, string>)[job.arrangement] || job.arrangement,
+      responsibilities: job.responsibilities.join('\n'),
+      requirements: job.requirements.join('\n'),
+      skills: job.skills.join(', '),
+    };
+    if (existing) {
+      if (existing.category === job.category) delete (extras as Partial<typeof extras>).category;
+      if (existing.arrangement === job.arrangement) delete (extras as Partial<typeof extras>).work_mode;
+      for (const key of ['responsibilities', 'requirements', 'skills'] as const) {
+        if (JSON.stringify(existing[key]) === JSON.stringify(job[key])) delete (extras as Partial<typeof extras>)[key];
+      }
+    }
     const payload = {
       title: job.title,
       description: job.description,
@@ -190,6 +209,7 @@ export const jobService = {
       job_type: job.type,
       deadline: job.deadline || null,
       status: job.status,
+      ...extras,
     };
     if (/^\d+$/.test(job.id)) await api.jobs.update(job.id, payload);
     else await api.jobs.create(payload);
