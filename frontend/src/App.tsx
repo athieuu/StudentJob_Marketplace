@@ -330,189 +330,440 @@ function Home() {
   const jobs = jobService
     .all()
     .filter((j) => j.status === "OPEN" && j.moderation === "APPROVED");
+  const [featuredTab, setFeaturedTab] = useState("ALL");
+
+  const filteredFeatured = jobs.filter((j) => {
+    if (featuredTab === "ALL") return true;
+    if (featuredTab === "PART_TIME") return j.type === "PART_TIME";
+    if (featuredTab === "INTERNSHIP")
+      return (
+        j.title.toLowerCase().includes("thực tập") ||
+        j.title.toLowerCase().includes("intern")
+      );
+    if (featuredTab === "REMOTE")
+      return j.location.toLowerCase().includes("remote") || j.arrangement === "Remote";
+    if (featuredTab === "TECH") return j.category === "Technology";
+    return true;
+  });
+
+  const spotlightJob = jobs[0];
 
   const categories = [
     {
       name: "Technology",
       label: "Công nghệ thông tin",
       sub: "Lập trình web, mobile, tester",
-      icon: <Laptop size={22} className="text-[var(--color-primary)]" />,
+      tone: "bg-sky-50 text-[#0369A1] border-sky-200",
+      icon: <Laptop size={22} />,
     },
     {
       name: "Marketing",
       label: "Marketing & Truyền thông",
       sub: "Content, SEO, mạng xã hội",
-      icon: <Megaphone size={22} className="text-[var(--color-primary)]" />,
+      tone: "bg-amber-50 text-amber-700 border-amber-200",
+      icon: <Megaphone size={22} />,
     },
     {
       name: "Design",
       label: "Thiết kế & Sáng tạo",
       sub: "UI/UX, đồ họa, dựng video",
-      icon: <Palette size={22} className="text-[var(--color-primary)]" />,
+      tone: "bg-indigo-50 text-indigo-700 border-indigo-200",
+      icon: <Palette size={22} />,
     },
     {
       name: "Data & Analytics",
       label: "Dữ liệu & Phân tích",
       sub: "Data analyst, nhập liệu, SQL",
-      icon: <BarChart3 size={22} className="text-[var(--color-primary)]" />,
+      tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      icon: <BarChart3 size={22} />,
     },
     {
       name: "Education",
       label: "Giáo dục & Đào tạo",
       sub: "Gia sư, trợ giảng tiếng Anh",
-      icon: <BookOpen size={22} className="text-[var(--color-primary)]" />,
+      tone: "bg-rose-50 text-rose-700 border-rose-200",
+      icon: <BookOpen size={22} />,
     },
     {
       name: "Operations",
       label: "Vận hành & Hỗ trợ",
       sub: "Chăm sóc khách hàng, admin",
-      icon: <Building2 size={22} className="text-[var(--color-primary)]" />,
+      tone: "bg-cyan-50 text-cyan-700 border-cyan-200",
+      icon: <Building2 size={22} />,
     },
+  ];
+
+  const marqueeItems = [
+    "React & TypeScript",
+    "Thực tập sinh AI / Data",
+    "UI/UX Designer (Figma)",
+    "Digital Marketing",
+    "Part-time Linh Hoạt",
+    "Trợ giảng Tiếng Anh",
+    "Content Creator",
+    "Remote Làm Từ Xa",
+    "Backend Node.js",
+  ];
+
+  const tabs = [
+    { key: "ALL", label: "Tất cả" },
+    { key: "PART_TIME", label: "Part-time" },
+    { key: "INTERNSHIP", label: "Thực tập" },
+    { key: "REMOTE", label: "Remote" },
+    { key: "TECH", label: "Công nghệ" },
   ];
 
   return (
     <>
       <PublicNav />
-      <main className="min-h-screen bg-[var(--color-background)]">
-        {/* Search-First Hero Section */}
-        <section className="bg-white border-b border-[var(--color-border)] py-12 md:py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-[var(--color-primary)] border border-sky-200 mb-4">
-                <Sparkles size={14} /> NỀN TẢNG VIỆC LÀM SINH VIÊN VIỆT NAM
-              </span>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--color-foreground)] tracking-tight leading-tight mb-4">
-                Tìm việc làm phù hợp cho tương lai của bạn.
-              </h1>
-              <p className="text-base text-[var(--color-muted-foreground)] leading-relaxed mb-8">
-                Hàng trăm cơ hội việc làm bán thời gian, thực tập có lương và dự án thực chiến dành riêng cho sinh viên các trường đại học, cao đẳng.
-              </p>
+      <main className="min-h-screen bg-[var(--color-background)] overflow-x-hidden">
+        {/* Super VIP Hero Section */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-white via-[#F0F9FF] to-[#E0F2FE] border-b border-[var(--color-border)] pt-10 pb-14 md:pt-16 md:pb-20">
+          {/* Subtle Architectural Grid & Ambient Glow */}
+          <div className="absolute inset-0 vip-grid-bg opacity-70 pointer-events-none" />
+          <div className="absolute -top-28 -right-24 w-96 h-96 rounded-full bg-sky-300/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-emerald-300/15 blur-3xl pointer-events-none" />
 
-              {/* Instant Search Box */}
-              <div className="mb-6">
-                <JobSearchBox />
-              </div>
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+              {/* Left Column: Brand Headline + Glass Search */}
+              <div className="lg:col-span-7">
+                <div className="vip-fade-up inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold vip-shimmer-badge text-[var(--color-primary)] border border-sky-200 shadow-sm mb-5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <Sparkles size={13} />
+                  <span>STUDENTJOB MARKETPLACE · CƠ HỘI ĐANG MỞ TUYỂN</span>
+                </div>
 
-              {/* Popular quick keyword pills */}
-              <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted-foreground)]">
-                <span className="font-semibold text-[var(--color-foreground)]">
-                  Gợi ý tìm kiếm:
-                </span>
-                <Link
-                  to="/jobs?category=Technology"
-                  className="px-2.5 py-1 rounded-md bg-[var(--color-muted)] hover:bg-[var(--color-border)] text-[var(--color-foreground)] font-medium transition-colors duration-150"
-                >
-                  Công nghệ IT
-                </Link>
-                <Link
-                  to="/jobs?category=Marketing"
-                  className="px-2.5 py-1 rounded-md bg-[var(--color-muted)] hover:bg-[var(--color-border)] text-[var(--color-foreground)] font-medium transition-colors duration-150"
-                >
-                  Marketing
-                </Link>
-                <Link
-                  to="/jobs?category=Design"
-                  className="px-2.5 py-1 rounded-md bg-[var(--color-muted)] hover:bg-[var(--color-border)] text-[var(--color-foreground)] font-medium transition-colors duration-150"
-                >
-                  Thiết kế UI/UX
-                </Link>
-                <Link
-                  to="/jobs?type=PART_TIME"
-                  className="px-2.5 py-1 rounded-md bg-[var(--color-muted)] hover:bg-[var(--color-border)] text-[var(--color-foreground)] font-medium transition-colors duration-150"
-                >
-                  Part-time
-                </Link>
-                <Link
-                  to="/jobs?location=Remote"
-                  className="px-2.5 py-1 rounded-md bg-[var(--color-muted)] hover:bg-[var(--color-border)] text-[var(--color-foreground)] font-medium transition-colors duration-150"
-                >
-                  Làm từ xa (Remote)
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+                <h1 className="vip-fade-up vip-delay-1 text-3xl sm:text-5xl lg:text-[52px] font-extrabold text-[var(--color-foreground)] tracking-tight leading-[1.12] mb-5">
+                  Kết nối sinh viên với{" "}
+                  <span className="bg-gradient-to-r from-[#0369A1] via-[#0EA5E9] to-[#16A34A] bg-clip-text text-transparent">
+                    việc làm thực chiến
+                  </span>{" "}
+                  & thực tập chất lượng.
+                </h1>
 
-        {/* Flat Stats Bar */}
-        <section className="bg-white border-b border-[var(--color-border)] py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              <div className="border-r border-[var(--color-border)] last:border-r-0">
-                <div className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] tracking-tight">
-                  1,200+
-                </div>
-                <div className="text-xs text-[var(--color-muted-foreground)] mt-1 font-medium">
-                  Cơ hội đang mở tuyển
-                </div>
-              </div>
-              <div className="border-r border-[var(--color-border)] md:border-r last:border-r-0">
-                <div className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] tracking-tight">
-                  850+
-                </div>
-                <div className="text-xs text-[var(--color-muted-foreground)] mt-1 font-medium">
-                  Doanh nghiệp liên kết
-                </div>
-              </div>
-              <div className="border-r border-[var(--color-border)] last:border-r-0">
-                <div className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] tracking-tight">
-                  12,000+
-                </div>
-                <div className="text-xs text-[var(--color-muted-foreground)] mt-1 font-medium">
-                  Cộng đồng sinh viên
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl lg:text-3xl font-bold text-[var(--color-primary)] tracking-tight">
-                  98%
-                </div>
-                <div className="text-xs text-[var(--color-muted-foreground)] mt-1 font-medium">
-                  Đánh giá hài lòng
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Featured Opportunities Section */}
-        <section className="py-12 md:py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
-              <div>
-                <span className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider block mb-1">
-                  Cơ hội việc làm mới nhất
-                </span>
-                <h2 className="text-2xl font-bold text-[var(--color-foreground)]">
-                  Việc làm nổi bật dành cho sinh viên
-                </h2>
-                <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] mt-1">
-                  Được chọn lọc từ các nhà tuyển dụng hàng đầu với thời gian linh hoạt.
+                <p className="vip-fade-up vip-delay-2 text-base sm:text-[17px] text-[var(--color-muted-foreground)] leading-relaxed max-w-2xl mb-8">
+                  Khám phá hàng trăm vị trí bán thời gian, thực tập có lương và dự án linh hoạt lịch học. Tích hợp AI phân tích CV và nhắn tin trực tiếp với nhà tuyển dụng.
                 </p>
-              </div>
-              <Link
-                to="/jobs"
-                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[var(--color-primary)] hover:underline"
-              >
-                Xem tất cả vị trí <ArrowRight size={15} />
-              </Link>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {jobs.slice(0, 6).map((j) => (
-                <JobCard key={j.id} job={j} />
+                {/* Elevated Search Box */}
+                <div className="vip-fade-up vip-delay-2 mb-6 p-1.5 rounded-2xl bg-white/80 backdrop-blur-md border border-sky-200/80 shadow-[0_18px_45px_-15px_rgba(3,105,161,0.22)]">
+                  <JobSearchBox />
+                </div>
+
+                {/* Quick Keyword Pills */}
+                <div className="vip-fade-up vip-delay-3 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-bold text-[var(--color-foreground)] mr-1">
+                    Xu hướng:
+                  </span>
+                  {[
+                    { label: "Công nghệ IT", to: "/jobs?category=Technology" },
+                    { label: "Marketing", to: "/jobs?category=Marketing" },
+                    { label: "Thiết kế UI/UX", to: "/jobs?category=Design" },
+                    { label: "Part-time", to: "/jobs?type=PART_TIME" },
+                    { label: "Remote", to: "/jobs?location=Remote" },
+                  ].map((pill) => (
+                    <Link
+                      key={pill.label}
+                      to={pill.to}
+                      className="px-3 py-1.5 rounded-full bg-white/90 border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-sky-50 hover:-translate-y-0.5 text-[var(--color-foreground)] font-semibold shadow-sm transition-all duration-200"
+                    >
+                      {pill.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Interactive Floating Career Showcase */}
+              <div className="lg:col-span-5 relative hidden sm:block">
+                <div className="relative mx-auto max-w-md h-[390px] flex items-center justify-center">
+                  {/* Orbital Rings */}
+                  <div className="absolute w-80 h-80 rounded-full border border-dashed border-sky-300/60" />
+                  <div className="absolute w-60 h-60 rounded-full border border-sky-200/70" />
+
+                  {/* Main Spotlight Card */}
+                  <div className="relative z-10 w-full max-w-[330px] bg-white/95 backdrop-blur-md border border-sky-200 rounded-2xl p-5 shadow-[0_24px_60px_-15px_rgba(12,74,110,0.18)] hover:-translate-y-1 transition-transform duration-300">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <CompanyMark name={spotlightJob?.company || "SJ"} />
+                        <div className="min-w-0">
+                          <span className="text-[11px] font-bold text-[var(--color-primary)] block truncate">
+                            {spotlightJob?.company || "TechCorp Vietnam"}
+                          </span>
+                          <span className="text-[10px] text-[var(--color-muted-foreground)] flex items-center gap-1">
+                            <MapPin size={10} /> {spotlightJob?.location || "TP.HCM · Linh hoạt"}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                        Đang tuyển
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-base text-[var(--color-foreground)] leading-snug mb-3 line-clamp-2">
+                      {spotlightJob?.title || "Frontend & AI Intern (React / TypeScript)"}
+                    </h3>
+
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {(spotlightJob?.skills?.slice(0, 3) || ["React", "TypeScript", "UI/UX"]).map(
+                        (s) => (
+                          <span
+                            key={s}
+                            className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[var(--color-background)] text-[var(--color-foreground)] border border-sky-100"
+                          >
+                            {s}
+                          </span>
+                        ),
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3.5 border-t border-slate-100">
+                      <div>
+                        <span className="text-[10px] text-[var(--color-muted-foreground)] block">
+                          Mức lương
+                        </span>
+                        <b className="text-xs font-extrabold text-[var(--color-primary)]">
+                          {spotlightJob
+                            ? `${money(spotlightJob.salaryMin)} - ${money(spotlightJob.salaryMax)}`
+                            : "5 - 8 triệu / tháng"}
+                        </b>
+                      </div>
+                      <Link
+                        to={spotlightJob ? `/jobs/${spotlightJob.id}` : "/jobs"}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-sky-800 text-white text-xs font-bold shadow-sm transition-colors"
+                      >
+                        Ứng tuyển <ArrowRight size={13} />
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Floating AI Score Badge (Top Right) */}
+                  <div className="vip-float absolute -top-1 right-0 z-20 bg-white border border-sky-200 rounded-2xl px-3.5 py-2.5 shadow-lg flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-[#0369A1] text-white flex items-center justify-center shrink-0">
+                      <Sparkles size={16} />
+                    </div>
+                    <div>
+                      <b className="text-xs font-extrabold text-[var(--color-foreground)] block">
+                        AI Đánh giá CV
+                      </b>
+                      <span className="text-[11px] font-semibold text-emerald-600">
+                        Độ phù hợp 92%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Floating Live Chat Pill (Bottom Left) */}
+                  <div className="vip-float-reverse absolute bottom-1 -left-2 z-20 bg-white border border-emerald-200 rounded-2xl px-3.5 py-2.5 shadow-lg flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+                      <CheckCircle2 size={17} />
+                    </div>
+                    <div>
+                      <b className="text-xs font-extrabold text-[var(--color-foreground)] block">
+                        Chat trực tiếp HR
+                      </b>
+                      <span className="text-[11px] text-[var(--color-muted-foreground)]">
+                        Phản hồi nhanh chóng
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Infinite Marquee Ticker */}
+        <section className="bg-white border-b border-[var(--color-border)] py-3.5 overflow-hidden vip-marquee-wrap">
+          <div className="vip-marquee-track items-center">
+            {[0, 1].map((dup) => (
+              <div key={dup} className="flex items-center gap-4 pr-4 shrink-0">
+                {marqueeItems.map((item, idx) => (
+                  <Link
+                    key={`${dup}-${item}-${idx}`}
+                    to={`/jobs?q=${encodeURIComponent(item)}`}
+                    className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-background)] border border-sky-100 hover:border-[var(--color-primary)] text-xs font-semibold text-[var(--color-foreground)] whitespace-nowrap transition-colors"
+                  >
+                    <Sparkles size={12} className="text-amber-500 shrink-0" />
+                    {item}
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Elevated Stats Strip */}
+        <section className="py-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                {
+                  val: `${Math.max(jobs.length, 120)}+`,
+                  label: "Cơ hội đang mở tuyển",
+                  icon: <BriefcaseBusiness size={18} />,
+                  tone: "bg-sky-50 text-[#0369A1] border-sky-200",
+                },
+                {
+                  val: "850+",
+                  label: "Doanh nghiệp liên kết",
+                  icon: <Building2 size={18} />,
+                  tone: "bg-indigo-50 text-indigo-700 border-indigo-200",
+                },
+                {
+                  val: "12,000+",
+                  label: "Cộng đồng sinh viên",
+                  icon: <Users size={18} />,
+                  tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                },
+                {
+                  val: "98%",
+                  label: "Đánh giá hài lòng",
+                  icon: <Star size={18} />,
+                  tone: "bg-amber-50 text-amber-700 border-amber-200",
+                },
+              ].map((st) => (
+                <div
+                  key={st.label}
+                  className="bg-white border border-[var(--color-border)] rounded-2xl p-5 flex items-center gap-4 hover:-translate-y-1 hover:shadow-lg hover:border-sky-300 transition-all duration-200"
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${st.tone}`}
+                  >
+                    {st.icon}
+                  </div>
+                  <div>
+                    <div className="text-2xl font-extrabold text-[var(--color-foreground)] tracking-tight">
+                      {st.val}
+                    </div>
+                    <div className="text-xs text-[var(--color-muted-foreground)] font-medium mt-0.5">
+                      {st.label}
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
+        {/* Featured Opportunities with Live Filter Tabs */}
+        <section className="py-10 md:py-14">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-5 mb-8">
+              <div>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider mb-1.5">
+                  <ChartNoAxesCombined size={14} /> Cơ hội việc làm mới nhất
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-foreground)]">
+                  Việc làm nổi bật dành cho sinh viên
+                </h2>
+                <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] mt-1">
+                  Chọn lọc từ các nhà tuyển dụng uy tín với lịch làm việc linh hoạt.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {tabs.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setFeaturedTab(t.key)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer ${
+                      featuredTab === t.key
+                        ? "bg-[var(--color-primary)] text-white shadow-sm"
+                        : "bg-white border border-[var(--color-border)] text-[var(--color-foreground)] hover:border-[var(--color-primary)]"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+                <Link
+                  to="/jobs"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[var(--color-primary)] hover:underline"
+                >
+                  Xem tất cả <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+
+            {filteredFeatured.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredFeatured.slice(0, 6).map((j) => (
+                  <div
+                    key={j.id}
+                    className="hover:-translate-y-1 transition-transform duration-200"
+                  >
+                    <JobCard job={j} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border border-[var(--color-border)] rounded-2xl p-10 text-center">
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-3">
+                  Chưa có việc làm nổi bật nào thuộc nhóm lọc này.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setFeaturedTab("ALL")}>
+                  Xem tất cả vị trí
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* AI Career Tools Spotlight */}
+        <section className="py-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0C4A6E] to-[#0369A1] text-white p-7 sm:p-8 shadow-lg group">
+                <div className="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-white/10 group-hover:scale-110 transition-transform duration-500" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/15 text-sky-100 mb-4">
+                  <Sparkles size={13} /> TRỢ LÝ AI THÔNG MINH
+                </span>
+                <h3 className="text-xl sm:text-2xl font-extrabold text-white mb-2">
+                  Phân tích & Chấm điểm CV bằng AI
+                </h3>
+                <p className="text-xs sm:text-sm text-sky-100 leading-relaxed mb-6 max-w-md">
+                  Tải lên CV PDF/DOCX để AI trích xuất kỹ năng, chỉ ra điểm cần cải thiện và đề xuất chỉnh sửa chuẩn nhà tuyển dụng trong vài giây.
+                </p>
+                <Link to="/student/ai-cv">
+                  <Button variant="accent" size="md">
+                    Thử phân tích CV ngay <ArrowRight size={15} />
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="relative overflow-hidden rounded-2xl bg-white border border-[var(--color-border)] p-7 sm:p-8 shadow-sm hover:shadow-lg hover:border-sky-300 transition-all duration-200 group">
+                <div className="absolute -right-12 -bottom-12 w-44 h-44 rounded-full bg-sky-50 group-hover:scale-110 transition-transform duration-500" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-[var(--color-primary)] border border-sky-200 mb-4">
+                  <FileText size={13} /> CÔNG CỤ TẠO HỒ SƠ
+                </span>
+                <h3 className="text-xl sm:text-2xl font-extrabold text-[var(--color-foreground)] mb-2">
+                  Trình tạo CV chuyên nghiệp & Lưu trữ
+                </h3>
+                <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] leading-relaxed mb-6 max-w-md">
+                  Tự thiết kế CV ấn tượng với nhiều mẫu hiện đại, xuất file nhanh và dùng trực tiếp khi ứng tuyển chỉ với 1 chạm.
+                </p>
+                <Link to="/student/cvs">
+                  <Button variant="primary" size="md">
+                    Mở Trình tạo CV <ArrowRight size={15} />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Category Explorer Section */}
-        <section className="py-12 bg-white border-y border-[var(--color-border)]">
+        <section className="py-14 bg-white border-y border-[var(--color-border)]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
               <div>
                 <span className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider block mb-1">
                   Khám phá ngành nghề
                 </span>
-                <h2 className="text-2xl font-bold text-[var(--color-foreground)]">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-foreground)]">
                   Lĩnh vực nghề nghiệp phổ biến
                 </h2>
                 <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] mt-1">
@@ -521,120 +772,141 @@ function Home() {
               </div>
               <Link
                 to="/jobs"
-                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[var(--color-primary)] hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[var(--color-primary)] hover:underline"
               >
                 Xem tất cả lĩnh vực <ArrowRight size={15} />
               </Link>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categories.map((c) => (
-                <Link
-                  key={c.name}
-                  to={`/jobs?category=${encodeURIComponent(c.name)}`}
-                  className="bg-white border border-[var(--color-border)] hover:border-[var(--color-primary)] rounded-xl p-5 flex items-start gap-4 transition-colors duration-150 group"
-                >
-                  <div className="w-12 h-12 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center shrink-0 group-hover:bg-sky-100 transition-colors duration-150">
-                    {c.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm text-[var(--color-foreground)] group-hover:text-[var(--color-primary)] transition-colors duration-150 mb-1">
-                      {c.label}
-                    </h3>
-                    <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
-                      {c.sub}
-                    </p>
-                  </div>
-                  <ArrowRight
-                    size={16}
-                    className="text-[var(--color-border)] group-hover:text-[var(--color-primary)] transition-colors duration-150 shrink-0 mt-1"
-                  />
-                </Link>
-              ))}
+              {categories.map((c) => {
+                const count = jobs.filter((j) => j.category === c.name).length;
+                return (
+                  <Link
+                    key={c.name}
+                    to={`/jobs?category=${encodeURIComponent(c.name)}`}
+                    className="bg-white border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:-translate-y-1 hover:shadow-md rounded-2xl p-5 flex items-start gap-4 transition-all duration-200 group"
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200 ${c.tone}`}
+                    >
+                      {c.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h3 className="font-bold text-sm text-[var(--color-foreground)] group-hover:text-[var(--color-primary)] transition-colors truncate">
+                          {c.label}
+                        </h3>
+                        {count > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-[var(--color-primary)] shrink-0">
+                            {count} việc
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+                        {c.sub}
+                      </p>
+                    </div>
+                    <ArrowRight
+                      size={16}
+                      className="text-slate-300 group-hover:text-[var(--color-primary)] group-hover:translate-x-1 transition-all duration-200 shrink-0 mt-1"
+                    />
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
 
         {/* How It Works Section */}
-        <section id="how-it-works" className="py-12 md:py-16">
+        <section id="how-it-works" className="py-14 md:py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-12">
               <span className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider block mb-1">
                 Quy trình ứng tuyển
               </span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-foreground)]">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-foreground)]">
                 Ba bước đơn giản để có việc làm
               </h2>
               <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] mt-2">
-                Hỗ trợ sinh viên từ bước tìm việc, chỉnh sửa CV chuyên nghiệp đến khi nhận thư mời làm việc.
+                Hỗ trợ sinh viên từ bước tìm việc, tối ưu CV bằng AI đến khi nhận thư mời làm việc.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] font-bold text-lg inline-flex items-center justify-center mb-4">
-                  01
+              {[
+                {
+                  step: "01",
+                  title: "Tìm kiếm vị trí phù hợp",
+                  desc: "Lọc công việc theo lịch rảnh, địa điểm gần trường hoặc việc làm từ xa (remote) không gò bó.",
+                  icon: <Search size={20} />,
+                },
+                {
+                  step: "02",
+                  title: "Ứng tuyển nhanh với CV",
+                  desc: "Tối ưu CV bằng AI hoặc dùng Trình tạo CV trực tuyến để gửi hồ sơ đến nhà tuyển dụng trong vài giây.",
+                  icon: <FileText size={20} />,
+                },
+                {
+                  step: "03",
+                  title: "Phỏng vấn & Phát triển",
+                  desc: "Trao đổi trực tiếp qua tin nhắn realtime, tích lũy kinh nghiệm thực chiến và thu nhập xứng đáng.",
+                  icon: <ShieldCheck size={20} />,
+                },
+              ].map((item) => (
+                <div
+                  key={item.step}
+                  className="bg-white border border-[var(--color-border)] hover:border-sky-300 hover:-translate-y-1 hover:shadow-lg rounded-2xl p-7 text-center transition-all duration-200"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <span className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 text-[var(--color-primary)] font-extrabold text-base inline-flex items-center justify-center">
+                      {item.icon}
+                    </span>
+                    <span className="text-2xl font-black text-sky-200">{item.step}</span>
+                  </div>
+                  <h3 className="font-bold text-base text-[var(--color-foreground)] mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+                    {item.desc}
+                  </p>
                 </div>
-                <h3 className="font-bold text-base text-[var(--color-foreground)] mb-2">
-                  Tìm kiếm vị trí phù hợp
-                </h3>
-                <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
-                  Lọc công việc theo thời gian rảnh, địa điểm gần trường hoặc việc làm từ xa (remote) không gò bó.
-                </p>
-              </div>
-
-              <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] font-bold text-lg inline-flex items-center justify-center mb-4">
-                  02
-                </div>
-                <h3 className="font-bold text-base text-[var(--color-foreground)] mb-2">
-                  Ứng tuyển nhanh với CV
-                </h3>
-                <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
-                  Tải lên hoặc sử dụng công cụ tạo CV trực tuyến để gửi hồ sơ trực tiếp đến nhà tuyển dụng chỉ trong vài giây.
-                </p>
-              </div>
-
-              <div className="bg-white border border-[var(--color-border)] rounded-xl p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-primary)] font-bold text-lg inline-flex items-center justify-center mb-4">
-                  03
-                </div>
-                <h3 className="font-bold text-base text-[var(--color-foreground)] mb-2">
-                  Phát triển kinh nghiệm
-                </h3>
-                <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
-                  Làm việc thực tế cùng các chuyên gia, nâng cao kỹ năng nghề nghiệp và nhận mức thu nhập xứng đáng.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* Employer Partner CTA */}
+        {/* Super VIP Employer Partner CTA */}
         <section className="pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white border-2 border-[var(--color-primary)] rounded-2xl p-8 sm:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="max-w-2xl">
-                <span className="text-xs font-bold text-[var(--color-accent)] uppercase tracking-wider block mb-1">
-                  Dành cho nhà tuyển dụng
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0C4A6E] via-[#0369A1] to-[#0284C7] p-8 sm:p-12 text-white shadow-[0_24px_60px_-15px_rgba(3,105,161,0.45)] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+              <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full border border-white/15 pointer-events-none" />
+              <div className="absolute right-12 -bottom-24 w-72 h-72 rounded-full bg-white/5 pointer-events-none" />
+
+              <div className="relative z-10 max-w-2xl">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/15 text-sky-100 uppercase tracking-wider mb-3">
+                  <Building2 size={13} /> Dành cho nhà tuyển dụng
                 </span>
-                <h2 className="text-2xl font-bold text-[var(--color-foreground)] mb-2">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
                   Tiếp cận nguồn nhân lực sinh viên trẻ và năng động
                 </h2>
-                <p className="text-xs sm:text-sm text-[var(--color-muted-foreground)] leading-relaxed">
-                  Đăng tin tuyển dụng thực tập sinh, nhân viên bán thời gian và quản lý hồ sơ ứng viên nhanh chóng, thuận tiện.
+                <p className="text-xs sm:text-sm text-sky-100 leading-relaxed">
+                  Đăng tin tuyển dụng thực tập sinh, nhân viên bán thời gian, quản lý hồ sơ và nhắn tin trực tiếp với ứng viên ngay trên một nền tảng.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 shrink-0 w-full sm:w-auto">
+              <div className="relative z-10 flex flex-col sm:flex-row gap-3 shrink-0 w-full lg:w-auto">
                 <Link to="/register" className="w-full sm:w-auto">
                   <Button variant="accent" size="md" fullWidth>
                     Đăng tin tuyển dụng ngay <ArrowRight size={15} />
                   </Button>
                 </Link>
                 <Link to="/login" className="w-full sm:w-auto">
-                  <Button variant="outline" size="md" fullWidth>
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-white/30 bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-colors cursor-pointer"
+                  >
                     Đăng nhập doanh nghiệp
-                  </Button>
+                  </button>
                 </Link>
               </div>
             </div>
@@ -1796,37 +2068,6 @@ function Login() {
           <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
             Đăng nhập để tiếp tục ứng tuyển và theo dõi hồ sơ của bạn.
           </p>
-        </div>
-
-        {/* Demo Fast Fill Buttons */}
-        <div className="mb-5 p-3 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)]">
-          <div className="text-[11px] font-bold text-[var(--color-muted-foreground)] uppercase tracking-wider mb-2">
-            Đăng nhập nhanh (Tài khoản mẫu)
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setEmail("student.demo@example.com");
-                setPassword("Student@123");
-              }}
-              className="text-left p-2 rounded-md bg-white border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-colors duration-150 cursor-pointer"
-            >
-              <div className="text-xs font-bold text-[var(--color-foreground)]">Sinh viên</div>
-              <div className="text-[10px] text-[var(--color-muted-foreground)] truncate">student.demo@example.com</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail("employer.demo@example.com");
-                setPassword("Student@123");
-              }}
-              className="text-left p-2 rounded-md bg-white border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-colors duration-150 cursor-pointer"
-            >
-              <div className="text-xs font-bold text-[var(--color-foreground)]">Nhà tuyển dụng</div>
-              <div className="text-[10px] text-[var(--color-muted-foreground)] truncate">employer.demo@example.com</div>
-            </button>
-          </div>
         </div>
 
         <form
