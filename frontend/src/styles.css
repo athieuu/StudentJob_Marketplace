@@ -53,7 +53,9 @@ h3{font-size:16px;font-weight:600;line-height:1.35;margin-bottom:8px}
 p{line-height:1.65}
 a,button{transition:background 180ms ease-in-out,color 180ms ease-in-out,border-color 180ms ease-in-out,opacity 180ms ease-in-out}
 @media (prefers-reduced-motion: reduce){
-  *,::before,::after{
+  *:not(.vip-marquee-track):not(.vip-float):not(.vip-float-reverse):not(.vip-shimmer-badge),
+  *:not(.vip-marquee-track):not(.vip-float):not(.vip-float-reverse):not(.vip-shimmer-badge)::before,
+  *:not(.vip-marquee-track):not(.vip-float):not(.vip-float-reverse):not(.vip-shimmer-badge)::after{
     animation-duration:0.01ms !important;
     animation-iteration-count:1 !important;
     transition-duration:0.01ms !important;
@@ -83,3 +85,99 @@ a,button{transition:background 180ms ease-in-out,color 180ms ease-in-out,border-
 }
 /* Giao diện khám phá công ty, lưu việc làm và phân tích CV */
 .sj-discovery{padding-top:54px;padding-bottom:75px}.sj-discovery-head{max-width:700px;margin-bottom:30px}.sj-discovery-head h1{font-size:clamp(30px,4vw,46px);margin:12px 0}.sj-discovery-head p{color:#64748b}.sj-discovery-search{display:flex;align-items:center;gap:12px;border:1px solid #d9e3f1;border-radius:14px;background:#fff;padding:13px 17px;max-width:470px;margin-top:25px;color:#64748b}.sj-discovery-search input{border:0;outline:0;flex:1;min-width:0;font:inherit}.sj-company-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.sj-company-card{padding:25px;border:1px solid #e2e8f0;background:#fff;border-radius:20px;box-shadow:0 8px 30px #0f172a08;display:flex;flex-direction:column;align-items:flex-start;gap:12px}.sj-company-card-head{width:100%;display:flex;justify-content:space-between;align-items:center}.sj-company-card h2{font-size:19px;margin:5px 0 0}.sj-company-card p{color:#64748b;margin:0;font-size:13px}.sj-company-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.sj-company-tags span{font-size:11px;background:#eff6ff;color:#1d4ed8;padding:6px 9px;border-radius:8px}.sj-company-card .btn{margin-top:auto}.sj-job-card-actions{display:flex;align-items:center;gap:7px}.sj-save-mini{width:32px;height:32px;border:1px solid #dbe4f0;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:#64748b;background:#fff;cursor:pointer}.sj-save-mini:hover,.sj-save-mini.is-saved{color:#2563eb;background:#eff6ff;border-color:#bfdbfe}.sj-saved-summary{display:flex;align-items:center;gap:10px;color:#475569;margin-bottom:20px}.sj-saved-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sj-empty{text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:65px 18px;background:#fff;border:1px dashed #cbd5e1;border-radius:18px;color:#64748b}.sj-empty h3{color:#0f172a;margin:0}.sj-empty p{margin:0 0 8px}.sj-analysis-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}.sj-analysis-panel{display:flex;flex-direction:column;align-items:flex-start;gap:15px}.sj-analysis-panel h2{margin:0;font-size:20px}.sj-analysis-panel p{line-height:1.6}.sj-analysis-icon{width:56px;height:56px;border-radius:16px;background:#eaf1ff;color:#2563eb;display:grid;place-items:center}.sj-file-drop{width:100%;min-height:155px;border:2px dashed #a8c4ef;border-radius:15px;background:#f8fbff;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:9px;color:#2563eb;cursor:pointer;text-align:center;padding:20px}.sj-file-drop small{color:#64748b}.sj-file-drop input{position:absolute;width:1px;height:1px;opacity:0}.sj-analysis-error{color:#b91c1c}.sj-analysis-success{color:#15803d;display:flex;align-items:center;gap:8px}.sj-analysis-fields{display:grid;grid-template-columns:110px minmax(0,1fr);gap:13px;width:100%;font-size:13px}.sj-analysis-fields dt{color:#64748b}.sj-analysis-fields dd{margin:0;overflow-wrap:anywhere;font-weight:600}.sj-analysis-warnings{padding:12px;background:#fff7ed;border-radius:10px;font-size:13px}.sj-analysis-placeholder{display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:center;min-height:250px;width:100%;color:#94a3b8;gap:10px}.sj-analysis-placeholder p{max-width:300px}.sj-analysis-panel .btn:disabled{opacity:.55;cursor:not-allowed}@media(max-width:900px){.sj-company-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.sj-company-grid,.sj-analysis-layout,.sj-saved-grid{grid-template-columns:1fr}.sj-discovery{padding-top:32px}.sj-company-card{padding:19px}}
+
+
+/* Super VIP Homepage Animations & Effects */
+@keyframes vip-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vip-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+@keyframes vip-float-reverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes vip-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes vip-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.vip-fade-up {
+  animation: vip-fade-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.vip-delay-1 {
+  animation-delay: 80ms;
+}
+
+.vip-delay-2 {
+  animation-delay: 160ms;
+}
+
+.vip-delay-3 {
+  animation-delay: 240ms;
+}
+
+.vip-float {
+  animation: vip-float 5s ease-in-out infinite;
+}
+
+.vip-float-reverse {
+  animation: vip-float-reverse 5.6s ease-in-out infinite;
+}
+
+.vip-marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: vip-marquee 28s linear infinite;
+}
+
+.vip-marquee-wrap:hover .vip-marquee-track {
+  animation-play-state: paused;
+}
+
+.vip-shimmer-badge {
+  background: linear-gradient(110deg, #e0f2fe 20%, #f0f9ff 45%, #bae6fd 70%, #e0f2fe 95%);
+  background-size: 200% 100%;
+  animation: vip-shimmer 4.5s linear infinite;
+}
+
+.vip-grid-bg {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(3, 105, 161, 0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+}
