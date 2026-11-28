@@ -51,7 +51,10 @@ const createUser = async (req, res) => {
             return res.status(400).json({ message: "Vai trò không hợp lệ" });
         }
 
-        const safeStatus = VALID_STATUSES.includes(status) ? status : "ACTIVE";
+        if (!VALID_STATUSES.includes(status)) {
+            return res.status(400).json({ message: "Trạng thái không hợp lệ" });
+        }
+        const safeStatus = status;
         const passwordHash = await bcrypt.hash(String(password), 10);
 
         await conn.beginTransaction();
@@ -141,6 +144,10 @@ const updateUser = async (req, res) => {
 
         await conn.beginTransaction();
 
+        const [activeAdmins] = await conn.execute(
+            "SELECT id FROM users WHERE role = ? AND status = ? FOR UPDATE",
+            ["ADMIN", "ACTIVE"]
+        );
         const [rows] = await conn.execute(
             "SELECT id, email, role, status FROM users WHERE id = ? LIMIT 1",
             [userId]
@@ -157,10 +164,19 @@ const updateUser = async (req, res) => {
             return res.status(400).json({ message: "Email không hợp lệ" });
         }
 
-        const nextRole = role && VALID_ROLES.includes(role) ? role : existingUser.role;
+        if ((role !== undefined && !VALID_ROLES.includes(role)) ||
+            (status !== undefined && !VALID_STATUSES.includes(status))) {
+            await conn.rollback();
+            return res.status(400).json({ message: "Vai trò hoặc trạng thái không hợp lệ" });
+        }
+        const nextRole = role === undefined ? existingUser.role : role;
         if (userId === Number(req.user.id) && nextRole !== existingUser.role) {
             await conn.rollback();
             return res.status(403).json({ message: "Không thể tự thay đổi vai trò của chính mình" });
+        }
+        if (existingUser.role === "ADMIN" && existingUser.status === "ACTIVE" && nextRole !== "ADMIN" && activeAdmins.length <= 1) {
+            await conn.rollback();
+            return res.status(409).json({ message: "Phải giữ ít nhất một quản trị viên đang hoạt động" });
         }
 
         const nextStatus = status && VALID_STATUSES.includes(status) ? status : existingUser.status || "ACTIVE";
@@ -249,6 +265,10 @@ const updateUser = async (req, res) => {
         await conn.commit();
         const updated = await getAdminUserById(userId);
 
+        if (nextRole !== existingUser.role || nextStatus !== existingUser.status) {
+            req.app.get("io")?.in(`user:${userId}`).disconnectSockets(true);
+        }
+
         return res.status(200).json({
             message: "Cập nhật tài khoản thành công",
             data: updated
@@ -256,6 +276,9 @@ const updateUser = async (req, res) => {
     } catch (error) {
         await conn.rollback().catch(() => {});
         console.error("Admin update user error:", error);
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({ message: "Email này đã được tài khoản khác sử dụng" });
+        }
         return res.status(500).json({ message: "Không thể cập nhật thông tin tài khoản" });
     } finally {
         conn.release();
@@ -305,6 +328,8 @@ const changeUserStatus = async (req, res) => {
             return res.status(409).json({ message: "Không thể cập nhật trạng thái" });
         }
 
+        req.app.get("io")?.in(`user:${userId}`).disconnectSockets(true);
+
         return res.status(200).json({
             message: status === "BLOCKED"
                 ? "Đã khóa tài khoản thành công"
@@ -333,7 +358,7 @@ const deleteUser = async (req, res) => {
         await conn.beginTransaction();
 
         const [rows] = await conn.execute(
-            "SELECT id, role FROM users WHERE id = ? LIMIT 1",
+            "SELECT id, role FROM users WHERE id = ? LIMIT 1 FOR UPDATE",
             [userId]
         );
         if (rows.length === 0) {
@@ -346,11 +371,35 @@ const deleteUser = async (req, res) => {
             return res.status(403).json({ message: "Không thể xóa tài khoản ADMIN" });
         }
 
+        // Lock profile parents too, so concurrent foreign-key inserts wait for deletion.
+        await conn.execute("SELECT id FROM student_profiles WHERE user_id = ? FOR UPDATE", [userId]);
+        await conn.execute("SELECT id FROM employer_profiles WHERE user_id = ? FOR UPDATE", [userId]);
+        // Reject deletion when cascades could remove marketplace or conversation data.
+        const [[linked]] = await conn.execute(
+            `SELECT
+               EXISTS(SELECT 1 FROM cvs WHERE user_id = ?) OR
+               EXISTS(SELECT 1 FROM cv_parse_results WHERE user_id = ?) OR
+               EXISTS(SELECT 1 FROM messages WHERE sender_id = ?) OR
+               EXISTS(SELECT 1 FROM reviews WHERE user_id = ?) OR
+               EXISTS(SELECT 1 FROM student_profiles s JOIN applications a ON a.student_id = s.id WHERE s.user_id = ?) OR
+               EXISTS(SELECT 1 FROM student_profiles s JOIN conversations c ON c.student_id = s.id WHERE s.user_id = ?) OR
+               EXISTS(SELECT 1 FROM student_profiles s JOIN student_skills k ON k.student_id = s.id WHERE s.user_id = ?) OR
+               EXISTS(SELECT 1 FROM student_profiles s JOIN job_match_scores j ON j.student_id = s.id WHERE s.user_id = ?) OR
+               EXISTS(SELECT 1 FROM employer_profiles e JOIN jobs j ON j.employer_id = e.id WHERE e.user_id = ?) OR
+               EXISTS(SELECT 1 FROM employer_profiles e JOIN conversations c ON c.employer_id = e.id WHERE e.user_id = ?) AS has_data`,
+            Array(10).fill(userId)
+        );
+        if (linked.has_data) {
+            await conn.rollback();
+            return res.status(409).json({ message: "Không thể xóa tài khoản đang có dữ liệu liên quan" });
+        }
+
         await conn.execute("DELETE FROM student_profiles WHERE user_id = ?", [userId]);
         await conn.execute("DELETE FROM employer_profiles WHERE user_id = ?", [userId]);
         await conn.execute("DELETE FROM users WHERE id = ?", [userId]);
 
         await conn.commit();
+        req.app.get("io")?.in(`user:${userId}`).disconnectSockets(true);
         return res.status(200).json({
             message: "Đã xóa tài khoản thành công",
             data: { id: userId }

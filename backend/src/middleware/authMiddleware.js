@@ -1,7 +1,8 @@
 const jwt = require("jsonwebtoken");
+const db = require("../config/db");
 
 // Xác thực JWT token
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     // Kiểm tra header Authorization
@@ -19,11 +20,20 @@ const authenticateToken = (req, res, next) => {
             process.env.JWT_SECRET
         );
 
-        // Lưu thông tin user để các API tiếp theo sử dụng
-        req.user = decoded;
-
-        next();
+        const [rows] = await db.execute(
+            "SELECT id, email, role, status FROM users WHERE id = ? LIMIT 1",
+            [decoded.id]
+        );
+        const user = rows[0];
+        if (!user || user.status !== "ACTIVE" || user.role !== decoded.role) {
+            return res.status(401).json({ message: "Phiên đăng nhập không còn hợp lệ" });
+        }
+        req.user = { ...decoded, email: user.email, role: user.role };
+        return next();
     } catch (error) {
+        if (error.name !== "JsonWebTokenError" && error.name !== "TokenExpiredError" && error.name !== "NotBeforeError") {
+            return res.status(503).json({ message: "Không thể xác thực lúc này" });
+        }
         return res.status(401).json({
             message: "Token không hợp lệ hoặc đã hết hạn"
         });

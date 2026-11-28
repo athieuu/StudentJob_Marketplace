@@ -3,7 +3,8 @@ const jobModel = require("../models/jobModel");
 const { getAdminEmails } = require("../models/userModel");
 const { sendEmail } = require("../services/emailService");
 
-const validJobTypes = ["PART_TIME", "FULL_TIME", "FREELANCE"];
+const validJobTypes = ["PART_TIME", "FULL_TIME", "FREELANCE", "INTERNSHIP"];
+const publicJob = require('../models/jobView');
 const validStatuses = ["OPEN", "CLOSED"];
 
 const validateJob = (body, isUpdate = false) => {
@@ -31,7 +32,7 @@ const validateJob = (body, isUpdate = false) => {
     }
 
     if (job_type !== undefined && !validJobTypes.includes(job_type)) {
-        return "job_type phải là PART_TIME, FULL_TIME hoặc FREELANCE";
+        return "job_type phải là PART_TIME, FULL_TIME, FREELANCE hoặc INTERNSHIP";
     }
 
     if (salary_min !== undefined && salary_min !== null &&
@@ -61,6 +62,13 @@ const validateJob = (body, isUpdate = false) => {
 
     if (status !== undefined && !validStatuses.includes(status)) {
         return "status phải là OPEN hoặc CLOSED";
+    }
+
+    for (const field of ['category', 'work_mode', 'responsibilities', 'requirements', 'skills']) {
+        if (body[field] != null && (typeof body[field] !== 'string' ||
+            (['category', 'work_mode'].includes(field) ? [...body[field]].length > 255 : Buffer.byteLength(body[field], 'utf8') > 65535))) {
+            return `${field} không hợp lệ`;
+        }
     }
 
     return null;
@@ -120,7 +128,7 @@ const createJob = async (req, res) => {
 const getAllJobs = async (req, res) => {
     try {
         const jobs = await jobModel.getAllJobs();
-        return res.status(200).json({ data: jobs });
+        return res.status(200).json({ data: jobs.map(publicJob) });
     } catch (error) {
         console.error("Get jobs error:", error.message);
 
@@ -134,7 +142,7 @@ const getMyJobs = async (req, res) => {
     try {
         const jobs = await jobModel.getJobsByEmployerUserId(req.user.id);
 
-        return res.status(200).json({ data: jobs });
+        return res.status(200).json({ data: jobs.map(publicJob) });
     } catch (error) {
         console.error("Get employer jobs error:", error);
 
@@ -162,7 +170,7 @@ const getJobById = async (req, res) => {
             });
         }
 
-        return res.status(200).json({ data: job });
+        return res.status(200).json({ data: publicJob(job) });
     } catch (error) {
         console.error("Get job error:", error.message);
 
@@ -185,7 +193,7 @@ const updateJob = async (req, res) => {
         const allowedFields = [
             "title", "description", "location",
             "salary_min", "salary_max", "job_type",
-            "deadline", "status"
+            "deadline", "status", "category", "work_mode", "responsibilities", "requirements", "skills"
         ];
 
         if (
@@ -237,7 +245,10 @@ const updateJob = async (req, res) => {
             job_type: req.body.job_type ?? existingJob.job_type,
             deadline: req.body.deadline === undefined
                 ? existingJob.deadline : req.body.deadline,
-            status: req.body.status ?? existingJob.status
+            status: req.body.status ?? existingJob.status,
+            ...Object.fromEntries(['category', 'work_mode', 'responsibilities', 'requirements', 'skills'].map(
+                field => [field, req.body[field] === undefined ? existingJob[field] : req.body[field]]
+            ))
         };
 
         const errorAfterMerge = validateJob(updatedJob);

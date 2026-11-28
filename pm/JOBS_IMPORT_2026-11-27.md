@@ -1,0 +1,75 @@
+# Synthetic jobs import, 2026-11-27
+
+The owner approved an additive schema and import of 150 synthetic jobs into the
+isolated VPS demo, assigned to Demo Employer as OPEN and APPROVED. Internship
+is a separate job type; the source categories, work modes, descriptions,
+responsibilities, requirements and skills remain available. The private input,
+credentials, database backup and ID manifests do not belong in Git.
+
+The guarded live rollout and import completed on 2026-11-28; the reviewed branch
+was fast-forwarded to Khang after a fresh ref check. The deployed frontend route and API proxy
+were checked over HTTP; a browser rendering check remains outstanding.
+Migration 009 and the data import are separate stages because MySQL DDL commits
+implicitly. The API must allowlist public fields before the migration so the
+internal fingerprint is not exposed; API and frontend internship support must
+be present before importing. Any retained rollback build must support both the
+expanded schema and internship rows and retain the deployed account safety fixes.
+
+Isolated MySQL 8.4 testing covered the 008 upgrade and fresh 001–009 baseline,
+an injected mid-import failure with zero rows left behind, full field comparison
+on repeat, and concurrent runs with 150 inserts and 150 skips. The source has 96
+part-time, 40 full-time and 14 internship jobs, with 10 in each of 15 categories.
+Public and employer API checks covered visibility, editing and fingerprint
+redaction. The frontend production build and mapping test passed. The four
+deployed safety files were matched by SHA-256 against the running backend; isolated
+tests covered stale tokens, account deletion protection and blocked sockets.
+
+A private consistent backup was restored into a separate network-isolated MySQL
+instance. Its 15 table checksums matched the live database at verification time.
+Before live changes, repeat the server, project, container, volume, employer and
+count checks and ensure the backup remains appropriate for the current state.
+Do not restart the live database, automatically roll back destructively, or touch
+other services. On failure, stop relevant StudentJob writers safely and report it.
+
+The locally staged privacy-only backend image is
+`sha256:900c78baa121c1a72e206c54801a9118ac32bc0c69521cb640a0180917a35c3a`.
+It derives from the running item34 backend and was tested against an isolated
+001–008 database: the public jobs endpoint returned 200 and both seed jobs.
+The compatible backend and retained post-import recovery image is
+`sha256:5a432fc5114d647892cbb754ea18b06279f55c0d8df6e190ed53f14388bf829b`.
+Against the isolated migrated database it returned 152 jobs including 14
+internships, hid fingerprints, reported an existing applicant count and accepted
+an unchanged internship edit. Its four safety-file hashes match the running
+backend. The final locally staged frontend image is
+`sha256:f1a377a3443cafc1a78c5884462f26cb4c291997a7cd0c73c72163e10af2de39`;
+its nginx check, jobs route and proxy to the isolated API passed.
+
+Backend Dev's focused review cleared commit `4463c8c` after the stale-response
+fix and deferred tests. The deployed account-safety files remain preserved in
+both staged backend images.
+
+On the VPS, the archive and input hashes matched their local counterparts. The
+privacy image was activated and verified before 009; the compatible backend and
+frontend images were activated after 009. The verified database UUID was
+`486a0d05-e972-11f1-86d2-42d4a46b02e7`, project `studentjob-demo-vps`, DB
+container `studentjob-demo-vps-db-1`, volume `studentjob-demo-vps_db-data`.
+The DB container was not restarted. The import inserted 150 rows, skipped zero,
+and a subsequent dry run skipped all 150 while comparing every source field.
+The restricted ID manifest is `/root/studentjob-import-release-20261128/manifest.json`
+(SHA-256 `30b4e6b4dcf94f6bd7ee3f10dba41ab81039f357e72818d3b1549d7f1e5915c6`);
+it records committed IDs 1–150. Public, employer and admin approved-list API
+checks matched all manifest IDs and excluded fingerprints. The frontend route
+and its API proxy served the verified bundle and imported jobs.
+
+The backup remains restricted at
+`/root/studentjob-private-backup-20261127-import/studentjob.sql.gz` (SHA-256
+`8a6b42a354a0b20468df17e95255461efea98bd50101b32e2a398c8ad202e351`).
+Before the rollout its separate network-isolated restore matched all 15 live
+table checksums; after import all 14 non-job table checksums still matched.
+This covers existing users and password hashes, CVs, applications and chat data.
+All four item34 safety-file hashes matched the running backend after activation.
+The compatible backend image listed above remains available for a reviewed
+rollback that preserves internship support and fingerprint redaction.
+An isolated Compose switch from a test candidate to that compatible image also
+passed: all 152 test jobs remained visible, an internship edit returned 200,
+and fingerprints remained hidden. No rollback was performed on the live service.

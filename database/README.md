@@ -1,6 +1,6 @@
 # StudentJob MySQL 8 database
 
-Canonical SQL is `migrations/001_users_profiles.sql` through `008_cv_feedback_history.sql`, followed
+Canonical SQL is `migrations/001_users_profiles.sql` through `009_job_import_fields.sql`, followed
 by optional `seeds/001_demo.sql`. Legacy SQL in `database/` and `backend/database/`
 is deprecated and must not be mixed with this baseline.
 
@@ -25,8 +25,8 @@ synthetic accounts (`student.demo@example.com`, `employer.demo@example.com`,
 The two jobs are explicitly OPEN/APPROVED. Never deploy this compose/seed to production.
 
 The official image runs top-level init files alphabetically, only when its data
-directory is empty. Explicit mounts name migrations 001–008 and the seed 900.
-Health checks authenticate over TCP and query both columns added by 008, so the
+directory is empty. Explicit mounts name migrations 001–009 and the seed 900.
+Health checks authenticate over TCP and query the column added by 009, so the
 temporary initialization server cannot report ready before migrations finish.
 See [official image initialization behavior](https://hub.docker.com/_/mysql).
 
@@ -46,6 +46,7 @@ SOURCE database/migrations/005_chat.sql;
 SOURCE database/migrations/006_ai.sql;
 SOURCE database/migrations/007_reviews_profile_cv.sql;
 SOURCE database/migrations/008_cv_feedback_history.sql;
+SOURCE database/migrations/009_job_import_fields.sql;
 -- Optional, demo databases only:
 SOURCE database/seeds/001_demo.sql;
 ```
@@ -54,6 +55,22 @@ These are an ordered **fresh-install baseline**, not rerunnable upgrades of a
 populated legacy schema. Duplicate table errors are intentional protection against
 accidental reapplication. Record applied filenames/checksums in your deployment
 system; no extra migration tracking table is imposed on the backend.
+
+Migration 009 extends the job type enum and adds nullable import fields. It is a
+separate, implicitly committing DDL step: verify the actual schema and a private,
+restorable backup first. Deploy API response allowlisting before applying it, then
+deploy the compatible API and frontend before inserting internship jobs. Retain
+internship support in any rollback while such jobs remain.
+
+`backend/scripts/import-synthetic-jobs.js INPUT EMPLOYER_PROFILE_ID --dry-run`
+validates the complete JSON input and compares existing fingerprints without
+writing. `--apply MANIFEST` writes in one transaction, serializes concurrent
+imports with a database advisory lock, and reserves a private manifest containing
+the exact IDs and fingerprints. A manifest marked `pending` or an empty manifest
+means the outcome must be checked against the database before retrying; do not
+assume a failed client command proves a failed commit. A repeat skips unchanged
+rows and refuses to overwrite a row changed after import. Credentials use DB_*
+runtime environment variables; never commit input, secrets or manifests.
 
 For an existing database: back it up and verify a restore first, inventory actual
 DDL (legacy copies drift), duplicates, orphan references and salary ranges; then

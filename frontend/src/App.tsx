@@ -98,6 +98,7 @@ import { cvService } from "./services/cv";
 import { aiService } from "./services/ai";
 import type { CVAnalyzeResponse, CVHistoryItem, JobFitResult, RecommendedJobItem } from "./services/ai";
 import { chatApi } from "./services/chat";
+import { loginRedirect } from "./loginRedirect";
 
 const AuthContext = createContext<{
   user: User | null;
@@ -148,6 +149,7 @@ function toggleSaved(userId: string, jobId: string): boolean {
   return next.includes(jobId);
 }
 const jobTypeVi = (type: string) => ({PART_TIME: "Bán thời gian", FULL_TIME: "Toàn thời gian", FREELANCE: "Làm tự do", INTERNSHIP: "Thực tập"} as Record<string,string>)[type] || type;
+const jobCategories = ['Technology', 'Marketing', 'Design', 'Data & Analytics', 'Education', 'Operations', 'Customer Service', 'Finance', 'Food & Beverage', 'Sales', 'Administration', 'Accounting & Finance', 'Logistics', 'Retail', 'Hospitality & Tourism', 'Events', 'Healthcare & Wellness', 'Other'];
 
 function App() {
   const [user, setUser] = useState<User | null>(() => store.session());
@@ -169,6 +171,9 @@ function App() {
     const expired = () => {
       store.setSession(null);
       setUser(null);
+      if (jobService.all().length === 0 && !jobService.isPublicLoading()) {
+        jobService.load().catch(() => {});
+      }
     };
 
     window.addEventListener("sj:auth-expired", expired);
@@ -197,13 +202,20 @@ function App() {
           joinedAt: new Date().toISOString().slice(0, 10),
         };
 
+        // Phiên phải được ghi lại trước khi nạp dữ liệu theo vai trò
+        store.setSession(restored);
+
         setUser(restored);
 
         if (apiUser.role === "STUDENT") {
           applicationService.loadMine().catch(console.error);
         }
 
-        if (apiUser.role === "EMPLOYER" || apiUser.role === "ADMIN") {
+        if (
+          apiUser.role === "EMPLOYER" ||
+          apiUser.role === "ADMIN" ||
+          (jobService.all().length === 0 && !jobService.isPublicLoading())
+        ) {
           jobService.load().catch(console.error);
         }
       })
@@ -211,6 +223,9 @@ function App() {
         tokenStore.clear();
         store.setSession(null);
         setUser(null);
+        if (jobService.all().length === 0 && !jobService.isPublicLoading()) {
+          jobService.load().catch(() => {});
+        }
       });
   }, []);
 
@@ -337,7 +352,7 @@ function Home() {
     if (featuredTab === "PART_TIME") return j.type === "PART_TIME";
     if (featuredTab === "INTERNSHIP")
       return (
-        j.title.toLowerCase().includes("thực tập") ||
+        j.type === "INTERNSHIP" || j.title.toLowerCase().includes("thực tập") ||
         j.title.toLowerCase().includes("intern")
       );
     if (featuredTab === "REMOTE")
@@ -1024,6 +1039,12 @@ function Jobs() {
   const pages = Math.max(1, Math.ceil(sorted.length / perPage));
   const results = sorted.slice((page - 1) * perPage, page * perPage);
   useEffect(() => setPage(1), [q, location, type, category, salary, sort]);
+  // Vào trực tiếp /jobs hoặc sau một lỗi tạm thời: nạp lại nếu danh sách công khai đang trống
+  useEffect(() => {
+    if (jobService.all().length === 0 && !jobService.isPublicLoading()) {
+      jobService.load().catch(() => {});
+    }
+  }, []);
 
   const handleResetFilters = () => {
     setType("ALL");
@@ -1116,6 +1137,7 @@ function Jobs() {
                       ["ALL", "Tất cả hình thức"],
                       ["PART_TIME", "Bán thời gian (Part-time)"],
                       ["FULL_TIME", "Toàn thời gian (Full-time)"],
+                      ["INTERNSHIP", "Thực tập"],
                       ["FREELANCE", "Làm tự do (Freelance)"],
                     ].map(([v, l]) => (
                       <label
@@ -1145,15 +1167,7 @@ function Jobs() {
                     onChange={(e) => setCategory(e.target.value)}
                   >
                     <option value="ALL">Tất cả lĩnh vực</option>
-                    {[
-                      "Technology",
-                      "Marketing",
-                      "Design",
-                      "Data & Analytics",
-                      "Education",
-                      "Operations",
-                      "Customer Service",
-                    ].map((c) => (
+                    {jobCategories.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
@@ -2040,7 +2054,7 @@ function Login() {
   if (user)
     return (
       <Navigate
-        to={user.role === "STUDENT" ? "/" : `/${user.role.toLowerCase()}/dashboard`}
+        to={loginRedirect(user.role, (location.state as { from?: unknown } | null)?.from)}
         replace
       />
     );
@@ -2083,14 +2097,11 @@ function Login() {
                 applicationService.loadMine().catch(console.error);
               }
 
-              if (u.role === "EMPLOYER" || u.role === "ADMIN") {
-                jobService.load().catch(console.error);
-              }
+              // Mọi vai trò đều cần danh sách việc làm công khai
+              jobService.load().catch(console.error);
               toast(`Chào mừng trở lại, ${u.name.split(" ")[0]}!`);
               const from = (location.state as { from?: string } | null)?.from;
-              const defaultTarget =
-                u.role === "STUDENT" ? "/" : `/${u.role.toLowerCase()}/dashboard`;
-              navigate(from || defaultTarget, {
+              navigate(loginRedirect(u.role, from), {
                 replace: true,
               });
             } catch (err) {
@@ -2333,10 +2344,13 @@ function Register() {
 
             <form className="space-y-4" onSubmit={requestOtp}>
               <div>
-                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                <label htmlFor="register-name" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                   {role === "STUDENT" ? "Họ và tên" : "Tên người đại diện"}
                 </label>
                 <input
+                  id="register-name"
+                  name="name"
+                  autoComplete="name"
                   className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                   required
                   minLength={2}
@@ -2348,10 +2362,13 @@ function Register() {
 
               {role === "EMPLOYER" && (
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                  <label htmlFor="register-company" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                     Tên công ty / Doanh nghiệp
                   </label>
                   <input
+                    id="register-company"
+                    name="company"
+                    autoComplete="organization"
                     className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                     required
                     value={company}
@@ -2362,10 +2379,14 @@ function Register() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                <label htmlFor="register-email" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                   Địa chỉ email
                 </label>
                 <input
+                  id="register-email"
+                  name="email"
+                  autoComplete="username"
+                  spellCheck={false}
                   className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                   type="email"
                   required
@@ -2376,10 +2397,13 @@ function Register() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                <label htmlFor="register-password" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                   Mật khẩu
                 </label>
                 <input
+                  id="register-password"
+                  name="password"
+                  autoComplete="new-password"
                   className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                   type="password"
                   required
@@ -2418,10 +2442,13 @@ function Register() {
         ) : (
           <form className="space-y-4" onSubmit={verify}>
             <div>
-              <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5 text-center">
+              <label htmlFor="register-otp" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5 text-center">
                 Mã xác minh OTP (6 chữ số)
               </label>
               <input
+                id="register-otp"
+                name="otp"
+                autoComplete="one-time-code"
                 className="w-full bg-white border-2 border-[var(--color-primary)] rounded-lg px-3.5 py-3 text-center tracking-[0.5em] text-xl font-bold font-mono text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
                 inputMode="numeric"
                 pattern="[0-9]{6}"
@@ -2631,7 +2658,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
               to: `/employer/applications/${a.id}`,
             }))
         : jobService
-            .all()
+            .adminAll()
             .filter((j) => j.moderation === "PENDING")
             .slice(0, 4)
             .map((j) => ({
@@ -2759,6 +2786,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
               authService.logout();
               setUser(null);
               navigate("/");
+              if (jobService.all().length === 0) jobService.load().catch(() => {});
             }}
           >
             <LogOut size={16} />
@@ -2959,6 +2987,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
                       authService.logout();
                       setUser(null);
                       navigate("/");
+                      if (jobService.all().length === 0) jobService.load().catch(() => {});
                     }}
                     className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
                   >
@@ -4756,7 +4785,12 @@ function ApplicationDetails({ role }: { role: "STUDENT" | "EMPLOYER" }) {
   const { id = "" } = useParams();
   const { user } = useContext(AuthContext);
   const app = applicationService.all().find((a) => a.id === id);
-  const job = app ? jobService.byId(app.jobId) : undefined;
+  // Employer chỉ tra cứu trong tin tuyển dụng của mình; sinh viên dùng danh sách công khai
+  const job = app
+    ? role === "EMPLOYER"
+      ? jobService.mineById(app.jobId)
+      : jobService.byId(app.jobId)
+    : undefined;
   const studentName = app?.studentName || "Ứng viên";
 
   if (role === "STUDENT" && app && app.studentId !== user?.id)
@@ -5326,7 +5360,7 @@ function EmployerDashboard() {
   const { user } = useContext(AuthContext);
 
   // API /jobs/mine đã trả về job của Employer hiện tại
-  const jobs = jobService.all();
+  const jobs = jobService.mine();
 
   const apps = applicationService
     .all()
@@ -5585,7 +5619,7 @@ function EmployerJobs() {
   const [status, setStatus] = useState("ALL");
   const [sort, setSort] = useState("newest");
   const [confirm, setConfirm] = useState<Job | null>(null);
-  const allJobs = jobService.all();
+  const allJobs = jobService.mine();
   const jobs = allJobs
     .filter(
       (j) =>
@@ -5868,7 +5902,7 @@ function JobEditor() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();
-  const existing = editing ? jobService.byId(id) : undefined;
+  const existing = editing ? jobService.mineById(id) : undefined;
   const [form, setForm] = useState({
     title: existing?.title || "",
     category: existing?.category || "Technology",
@@ -6015,16 +6049,8 @@ function JobEditor() {
                   value={form.category}
                   onChange={(e) => change("category", e.target.value)}
                 >
-                  {[
-                    "Technology",
-                    "Marketing",
-                    "Design",
-                    "Data & Analytics",
-                    "Education",
-                    "Operations",
-                    "Customer Service",
-                    "Finance",
-                  ].map((c) => (
+                  {!jobCategories.includes(form.category) && <option value={form.category}>{form.category}</option>}
+                  {jobCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </SharedSelect>
@@ -6036,6 +6062,7 @@ function JobEditor() {
                 >
                   <option value="PART_TIME">Bán thời gian</option>
                   <option value="FULL_TIME">Toàn thời gian</option>
+                  <option value="INTERNSHIP">Thực tập</option>
                   <option value="FREELANCE">Làm tự do</option>
                 </SharedSelect>
               </Field>
@@ -6073,6 +6100,7 @@ function JobEditor() {
                   value={form.arrangement}
                   onChange={(e) => change("arrangement", e.target.value)}
                 >
+                  {!['On-site', 'Hybrid', 'Remote'].includes(form.arrangement) && <option value={form.arrangement}>{form.arrangement}</option>}
                   <option value="On-site">Tại văn phòng</option>
                   <option value="Hybrid">Kết hợp</option>
                   <option value="Remote">Làm từ xa</option>
@@ -6582,7 +6610,7 @@ function AdminDashboard() {
   }, []);
 
   const users = store.users(),
-    jobs = jobService.all(),
+    jobs = jobService.adminAll(),
     apps = applicationService.all();
 
   const statsBreakdown = [
@@ -7736,7 +7764,7 @@ function AdminJobs() {
   const [rejectReason, setRejectReason] = useState("");
   const [preview, setPreview] = useState<Job | null>(null);
 
-  const allJobs = jobService.all();
+  const allJobs = jobService.adminAll();
   const jobs = allJobs.filter(
     (j) =>
       (moderation === "ALL" || j.moderation === moderation) &&
@@ -8104,7 +8132,7 @@ function AdminApplications() {
       try {
         const result = await applicationService.loadAllAdmin();
 
-        if (!cancelled) {
+        if (!cancelled && result) {
           setApplications(result.applications);
           setLoadError("");
         }

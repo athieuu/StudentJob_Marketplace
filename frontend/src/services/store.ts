@@ -1,10 +1,26 @@
 import type { User, Role, Job, Application, Review } from '../types';
 import { api, tokenStore } from './api';
 let userCache: User[] = [];
-let jobCache: Job[] = [];
+// Job caches are split by scope: public listing (every role), the employer's
+// own jobs (/jobs/mine), and admin pending moderation (/admin/jobs/pending).
+let publicJobCache: Job[] = [];
+let employerJobCache: Job[] = [];
+let adminPendingJobCache: Job[] = [];
 let applicationCache: Application[] = [];
 let reviewCache: Review[] = [];
+let jobLoadVersion = 0;
+let publicJobLoadVersion = 0;
+let publicLoadInFlight = 0;
+let employerJobLoadVersion = 0;
+let adminJobLoadVersion = 0;
+let sessionEpoch = 0;
+let applicationListVersion = 0;
+const jobApplicationVersions = new Map<string, number>();
 const notifyData = () => window.dispatchEvent(new Event('sj:data-updated'));
+const textList = (value: unknown, separator: RegExp): string[] =>
+  Array.isArray(value) ? value : typeof value === 'string' ? value.split(separator).map(s => s.trim()).filter(Boolean) : [];
+const arrangement = (value: unknown): Job['arrangement'] =>
+  value === 'Từ xa' || value === 'Remote' ? 'Remote' : value === 'Kết hợp' || value === 'Hybrid' ? 'Hybrid' : value === 'Trực tiếp' || !value ? 'On-site' : String(value);
 
 const mapJob = (row: any): Job => ({
   id: String(row.id),
@@ -17,11 +33,11 @@ const mapJob = (row: any): Job => ({
   salaryMin: Number(row.salary_min || 0),
   salaryMax: Number(row.salary_max || 0),
   location: row.location || 'Not specified',
-  arrangement: row.arrangement || 'On-site',
+  arrangement: arrangement(row.work_mode || row.arrangement),
   description: row.description || '',
-  responsibilities: Array.isArray(row.responsibilities) ? row.responsibilities : [],
-  requirements: Array.isArray(row.requirements) ? row.requirements : [],
-  skills: Array.isArray(row.skills) ? row.skills : [],
+  responsibilities: textList(row.responsibilities, /\r?\n/),
+  requirements: textList(row.requirements, /\r?\n/),
+  skills: textList(row.skills, /,/),
   deadline: row.deadline ? String(row.deadline).slice(0, 10) : '',
   postedAt: row.created_at ? String(row.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10),
   status: row.status,
@@ -55,7 +71,22 @@ function readSession(): User | null {
     return null;
   }
 }
+const sessionKey = (user: User | null) => user ? `${user.id}:${user.role}` : '';
 function saveSession(user: User | null) {
+  if (sessionKey(readSession()) !== sessionKey(user)) {
+    // Private caches belong to the outgoing session; public jobs are the same
+    // for every role and survive the switch.
+    employerJobCache = [];
+    adminPendingJobCache = [];
+    applicationCache = [];
+    if (user?.role !== 'ADMIN') userCache = [];
+    sessionEpoch++;
+    jobLoadVersion++;
+    employerJobLoadVersion++;
+    adminJobLoadVersion++;
+    applicationListVersion++;
+    jobApplicationVersions.clear();
+  }
   if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   else localStorage.removeItem(SESSION_KEY);
 }
@@ -75,13 +106,14 @@ export const store = {
   setSession: saveSession,
   reset: () => {
     saveSession(null);
-    userCache = []; 
+    userCache = [];
     tokenStore.clear();
-    jobCache = [];
+    employerJobCache = [];
+    adminPendingJobCache = [];
     applicationCache = [];
     notifyData();
   },
-  
+
 
 users: () => userCache,
 
@@ -109,7 +141,7 @@ async loadUsers(): Promise<User[]> {
 },
 
 
-  jobs: () => jobCache,
+  jobs: () => publicJobCache,
   applications: () => applicationCache,
   reviews: () => reviewCache,
   saveUsers: (_: User[]) => undefined,
@@ -140,47 +172,117 @@ export const authService = {
     tokenStore.clear();
     saveSession(null);
     userCache = [];
-    jobCache = [];
+    employerJobCache = [];
+    adminPendingJobCache = [];
     applicationCache = [];
     notifyData();
   },
 };
 
 export const jobService = {
-  all: () => jobCache,
-  byId: (id: string): Job | undefined => jobCache.find(job => job.id === id),
+  all: () => publicJobCache,
+  isPublicLoading: () => publicLoadInFlight > 0,
+  mine: () => (readSession()?.role === 'EMPLOYER' ? employerJobCache : []),
+  mineById: (id: string): Job | undefined => jobService.mine().find(job => job.id === id),
+  adminAll: () => {
+    const pending = readSession()?.role === 'ADMIN' ? adminPendingJobCache : [];
+    const seen = new Set<string>();
+    return [...publicJobCache, ...pending].filter(job => {
+      if (seen.has(job.id)) return false;
+      seen.add(job.id);
+      return true;
+    });
+  },
+  byId: (id: string): Job | undefined => {
+    const session = readSession();
+    return publicJobCache.find(job => job.id === id)
+      ?? (session?.role === 'EMPLOYER' ? employerJobCache.find(job => job.id === id) : undefined)
+      ?? (session?.role === 'ADMIN' ? adminPendingJobCache.find(job => job.id === id) : undefined);
+  },
   async load() {
     const session = readSession();
-    let rows: Record<string, any>[];
-    if (session?.role === 'EMPLOYER') {
-      const result = await api.jobs.mine();
-      rows = result.data;
-    } else {
+    const identity = sessionKey(session);
+    const epoch = sessionEpoch;
+    // Bumping jobLoadVersion invalidates application-detail responses issued by older loads.
+    ++jobLoadVersion;
+    const publicVersion = ++publicJobLoadVersion;
+    const employerVersion = session?.role === 'EMPLOYER' ? ++employerJobLoadVersion : 0;
+    const adminVersion = session?.role === 'ADMIN' ? ++adminJobLoadVersion : 0;
+    const sessionStale = () => identity !== sessionKey(readSession()) || epoch !== sessionEpoch;
+
+    // Public jobs are visible to every role and do not depend on auth state,
+    // so only a newer public load (publicJobLoadVersion) supersedes them.
+    let publicError: unknown = null;
+    publicLoadInFlight++;
+    try {
       const result = await api.jobs.all();
-      rows = result.data;
-      if (session?.role === 'ADMIN') {
-        try {
-          const pending = await api.admin.pendingJobs();
-          rows = [...rows, ...pending.data];
-        } catch (error) {
-          console.error('Could not load pending jobs', error);
+      if (publicVersion === publicJobLoadVersion) {
+        publicJobCache = result.data.map(mapJob);
+        notifyData();
+      }
+    } catch (error) {
+      publicError = error;
+    } finally {
+      publicLoadInFlight = Math.max(0, publicLoadInFlight - 1);
+    }
+
+    if (session?.role === 'EMPLOYER') {
+      try {
+        const result = await api.jobs.mine();
+        if (!sessionStale() && employerVersion === employerJobLoadVersion) {
+          employerJobCache = result.data.map(mapJob);
+          // Fetch details only for jobs with applications; counts arrive with the list.
+          const populatedIds = new Set(employerJobCache.filter(job => job.applicants > 0).map(job => job.id));
+          applicationCache = applicationCache.filter(app => populatedIds.has(app.jobId));
+          await Promise.all(employerJobCache.filter(job => job.applicants > 0).map(job => applicationService.loadByJob(job.id).catch(error => {
+            console.error(`Could not load applications for job ${job.id}`, error);
+          })));
+        }
+      } catch (error) {
+        // Only the employer's own data is suspect; public jobs stay intact.
+        if (!sessionStale() && employerVersion === employerJobLoadVersion) {
+          employerJobCache = [];
+          applicationCache = [];
+          notifyData();
+        }
+        throw error;
+      }
+    }
+
+    if (session?.role === 'ADMIN') {
+      try {
+        const pending = await api.admin.pendingJobs();
+        if (!sessionStale() && adminVersion === adminJobLoadVersion) {
+          adminPendingJobCache = pending.data.map(mapJob);
+        }
+      } catch (error) {
+        console.error('Could not load pending jobs', error);
+        if (!sessionStale() && adminVersion === adminJobLoadVersion) {
+          adminPendingJobCache = [];
         }
       }
     }
-    const uniqueRows = [...new Map(rows.map(row => [String(row.id), row])).values()];
-    jobCache = uniqueRows.map(mapJob);
-
-    // Load each employer-owned job's applications so dashboard/listing totals are accurate.
-    if (session?.role === 'EMPLOYER') {
-      await Promise.all(jobCache.map(job => applicationService.loadByJob(job.id).catch(error => {
-        console.error(`Could not load applications for job ${job.id}`, error);
-      })));
-    }
 
     notifyData();
-    return jobCache;
+    if (publicError) throw publicError;
+    return publicJobCache;
   },
   async save(job: Job) {
+    const existing = this.mineById(job.id) ?? this.byId(job.id);
+    const extras = {
+      category: job.category,
+      work_mode: ({ 'On-site': 'Trực tiếp', Hybrid: 'Kết hợp', Remote: 'Từ xa' } as Record<string, string>)[job.arrangement] || job.arrangement,
+      responsibilities: job.responsibilities.join('\n'),
+      requirements: job.requirements.join('\n'),
+      skills: job.skills.join(', '),
+    };
+    if (existing) {
+      if (existing.category === job.category) delete (extras as Partial<typeof extras>).category;
+      if (existing.arrangement === job.arrangement) delete (extras as Partial<typeof extras>).work_mode;
+      for (const key of ['responsibilities', 'requirements', 'skills'] as const) {
+        if (JSON.stringify(existing[key]) === JSON.stringify(job[key])) delete (extras as Partial<typeof extras>)[key];
+      }
+    }
     const payload = {
       title: job.title,
       description: job.description,
@@ -190,6 +292,7 @@ export const jobService = {
       job_type: job.type,
       deadline: job.deadline || null,
       status: job.status,
+      ...extras,
     };
     if (/^\d+$/.test(job.id)) await api.jobs.update(job.id, payload);
     else await api.jobs.create(payload);
@@ -206,35 +309,62 @@ export const jobService = {
 export const applicationService = {
 
 async loadAllAdmin() {
-  const result = await api.admin.allApplications();
-
-  applicationCache = result.data.map((row: any) =>
+  const identity = sessionKey(readSession());
+  const epoch = sessionEpoch;
+  const version = ++applicationListVersion;
+  const current = () => identity === sessionKey(readSession()) && epoch === sessionEpoch && version === applicationListVersion;
+  let result: Awaited<ReturnType<typeof api.admin.allApplications>>;
+  try { result = await api.admin.allApplications(); }
+  catch (error) { if (!current()) return null; throw error; }
+  if (!current()) return null;
+  const loaded = result.data.map((row: any) =>
     mapApplication(row)
   );
-
+  applicationCache = loaded;
   notifyData();
 
   return {
-    applications: applicationCache,
+    applications: loaded,
     statistics: result.statistics
   };
 },
 
   all: () => applicationCache,
   async loadMine() {
-    const result = await api.applications.mine();
     const current = readSession();
-    applicationCache = result.data.map((row: any) => mapApplication(row, current?.id));
-    notifyData();
-    return applicationCache;
-  },
-  async loadByJob(jobId: string) {
-    const result = await api.applications.byJob(jobId);
-    const loaded = result.data.map((row: any) => mapApplication(row));
-    const others = applicationCache.filter(app => app.jobId !== String(jobId));
-    applicationCache = [...others, ...loaded];
+    const identity = sessionKey(current);
+    const epoch = sessionEpoch;
+    const version = ++applicationListVersion;
+    const isCurrent = () => identity === sessionKey(readSession()) && epoch === sessionEpoch && version === applicationListVersion;
+    let result: Awaited<ReturnType<typeof api.applications.mine>>;
+    try { result = await api.applications.mine(); }
+    catch (error) { if (!isCurrent()) return null; throw error; }
+    if (!isCurrent()) return null;
+    const loaded = result.data.map((row: any) => mapApplication(row, current?.id));
+    applicationCache = loaded;
     notifyData();
     return loaded;
+  },
+  async loadByJob(jobId: string) {
+    const identity = sessionKey(readSession());
+    const version = jobLoadVersion;
+    const epoch = sessionEpoch;
+    const request = (jobApplicationVersions.get(jobId) || 0) + 1;
+    jobApplicationVersions.set(jobId, request);
+    try {
+      const result = await api.applications.byJob(jobId);
+      const loaded = result.data.map((row: any) => mapApplication(row));
+      if (identity !== sessionKey(readSession()) || epoch !== sessionEpoch || version !== jobLoadVersion || jobApplicationVersions.get(jobId) !== request) return null;
+      const others = applicationCache.filter(app => app.jobId !== String(jobId));
+      applicationCache = [...others, ...loaded];
+      notifyData();
+      return loaded;
+    } catch (error) {
+      if (identity !== sessionKey(readSession()) || epoch !== sessionEpoch || version !== jobLoadVersion || jobApplicationVersions.get(jobId) !== request) return null;
+      applicationCache = applicationCache.filter(app => app.jobId !== String(jobId));
+      notifyData();
+      throw error;
+    }
   },
   async apply(jobId: string, user: User, message: string) {
     return api.applications.create({ job_id: Number(jobId), cv_url: user.cvUrl || null, cover_letter: message || null });

@@ -24,6 +24,7 @@ const io = new Server(server, {
         credentials: true
     }
 });
+app.set("io", io);
 
 // Kiểm tra kết nối realtime
 // Khởi tạo hệ thống chat realtime có xác thực JWT

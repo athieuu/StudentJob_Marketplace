@@ -21,9 +21,10 @@ services:
       - ./migrations/006_ai.sql:/docker-entrypoint-initdb.d/006_ai.sql:ro
       - ./migrations/007_reviews_profile_cv.sql:/docker-entrypoint-initdb.d/007_reviews_profile_cv.sql:ro
       - ./migrations/008_cv_feedback_history.sql:/docker-entrypoint-initdb.d/008_cv_feedback_history.sql:ro
+      - ./migrations/009_job_import_fields.sql:/docker-entrypoint-initdb.d/009_job_import_fields.sql:ro
       - ./seeds/001_demo.sql:/docker-entrypoint-initdb.d/900_demo.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql --protocol=TCP -h 127.0.0.1 -u$$MYSQL_USER $$MYSQL_DATABASE -Nse 'SELECT file_name, feedback FROM cv_parse_results LIMIT 1' >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql --protocol=TCP -h 127.0.0.1 -u$$MYSQL_USER $$MYSQL_DATABASE -Nse 'SELECT import_fingerprint FROM jobs LIMIT 1' >/dev/null 2>&1"]
       interval: 3s
       timeout: 5s
       retries: 60

@@ -1,5 +1,5 @@
 export type Role = 'STUDENT' | 'EMPLOYER' | 'ADMIN';
-export type JobType = 'PART_TIME' | 'FULL_TIME' | 'FREELANCE';
+export type JobType = 'PART_TIME' | 'FULL_TIME' | 'FREELANCE' | 'INTERNSHIP';
 export type JobStatus = 'OPEN' | 'CLOSED';
 export type ApplicationStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
 export type ModerationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -23,7 +23,7 @@ export interface Job {
   salaryMax: number;
 
   location: string;
-  arrangement: 'On-site' | 'Hybrid' | 'Remote';
+  arrangement: string;
 
   description: string;
   responsibilities: string[];
