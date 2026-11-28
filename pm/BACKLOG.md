@@ -4,8 +4,9 @@
 
 > 2026-11-27: The owner approved an additive job schema and a 150-row synthetic
 > import for the isolated VPS demo, assigned to Demo Employer and OPEN/APPROVED;
-> internships remain distinct. Delivery remains in progress pending safety-fix
-> integration, verified private backup/recovery, deployment and live checks.
+> internships remain distinct. The guarded live import and API/proxy checks
+> completed on 2026-11-28; browser verification and branch publication remain
+> open. See [job import evidence](JOBS_IMPORT_2026-11-27.md).
 
 > Integration update 2026-11-26: combined history, parser, chat, profile and review checks are recorded in [INTEGRATION_2026-11-26.md](INTEGRATION_2026-11-26.md); this does not close PM items #9 or #20.
 
