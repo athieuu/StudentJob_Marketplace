@@ -229,7 +229,8 @@ test('mid-flight job responses are discarded across role switches and newer load
   await jobService.load();
   assert.equal(jobService.all().length, 1);
 
-  // Employer load mid-flight, then the user switches to another employer account.
+  // Employer load mid-flight, then the user switches to another employer account:
+  // public /jobs is role-independent and still commits, while stale /jobs/mine is discarded.
   deferred = [];
   global.fetch = async url => {
     const u = String(url);
@@ -240,12 +241,13 @@ test('mid-flight job responses are discarded across role switches and newer load
   const staleLoad = jobService.load();
   await waitDeferred(1);
   store.setSession({ id: '43', role: 'EMPLOYER' });
-  deferred[0].resolve(okResponse([{ id: 99, employer_id: 42, title: 'Stale public', status: 'OPEN', moderation_status: 'APPROVED' }]));
+  deferred[0].resolve(okResponse([...publicRows, { id: 98, employer_id: 42, title: 'Public during switch', status: 'OPEN', moderation_status: 'APPROVED' }]));
   await waitDeferred(2);
   deferred[1].resolve(okResponse([{ id: 99, employer_id: 42, title: 'Stale own', status: 'OPEN', moderation_status: 'APPROVED', applicant_count: 2 }]));
   await staleLoad;
-  assert.equal(jobService.all().length, 1, 'stale /jobs response cannot replace the public cache after a role switch');
+  assert.equal(jobService.all().length, 2, 'role-independent public /jobs commits unless a newer load superseded it');
   assert.equal(jobService.mine().length, 0, 'stale /jobs/mine response cannot refill after a role switch');
+  assert.equal(jobService.mineById('99'), undefined);
   assert.equal(jobService.byId('99'), undefined);
 
   // A fresh load under the new employer account recovers both caches.
@@ -302,4 +304,24 @@ test('mid-flight job responses are discarded across role switches and newer load
   assert.equal(jobService.adminAll().some(j => j.id === '30'), false, 'stale /admin/jobs/pending response cannot refill after a role switch');
   assert.equal(jobService.adminAll().every(j => j.moderation === 'APPROVED'), true, 'admin view still shows the intact public cache');
   assert.equal(jobService.mine().length, 0, 'non-employer never sees employer jobs');
+});
+
+test('stale employer session expiring with 401 still keeps public /jobs visible', async () => {
+  const { store, jobService } = await loadStore();
+  store.setSession({ id: '999', role: 'EMPLOYER' });
+  global.fetch = async url => {
+    const u = String(url);
+    if (u.endsWith('/jobs')) {
+      store.setSession(null);
+      return okResponse([{ id: 51, employer_id: 1, title: 'Public after 401', status: 'OPEN', moderation_status: 'APPROVED' }]);
+    }
+    if (u.endsWith('/jobs/mine')) {
+      return { ok: false, status: 401, json: async () => ({ message: 'Unauthorized' }) };
+    }
+    return okResponse([]);
+  };
+  await assert.rejects(jobService.load());
+  assert.equal(jobService.all().length, 1, 'public jobs stay visible even when stale employer auth expires mid-flight');
+  assert.equal(jobService.all()[0].id, '51');
+  assert.equal(jobService.mine().length, 0);
 });

@@ -10,6 +10,7 @@ let applicationCache: Application[] = [];
 let reviewCache: Review[] = [];
 let jobLoadVersion = 0;
 let publicJobLoadVersion = 0;
+let publicLoadInFlight = 0;
 let employerJobLoadVersion = 0;
 let adminJobLoadVersion = 0;
 let sessionEpoch = 0;
@@ -180,6 +181,7 @@ export const authService = {
 
 export const jobService = {
   all: () => publicJobCache,
+  isPublicLoading: () => publicLoadInFlight > 0,
   mine: () => (readSession()?.role === 'EMPLOYER' ? employerJobCache : []),
   mineById: (id: string): Job | undefined => jobService.mine().find(job => job.id === id),
   adminAll: () => {
@@ -208,15 +210,19 @@ export const jobService = {
     const adminVersion = session?.role === 'ADMIN' ? ++adminJobLoadVersion : 0;
     const sessionStale = () => identity !== sessionKey(readSession()) || epoch !== sessionEpoch;
 
-    // Public jobs are visible to every role, so load them first regardless of session.
+    // Public jobs are visible to every role and do not depend on auth state,
+    // so only a newer public load (publicJobLoadVersion) supersedes them.
     let publicError: unknown = null;
+    publicLoadInFlight++;
     try {
       const result = await api.jobs.all();
-      if (!sessionStale() && publicVersion === publicJobLoadVersion) {
+      if (publicVersion === publicJobLoadVersion) {
         publicJobCache = result.data.map(mapJob);
       }
     } catch (error) {
       publicError = error;
+    } finally {
+      publicLoadInFlight = Math.max(0, publicLoadInFlight - 1);
     }
 
     if (session?.role === 'EMPLOYER') {

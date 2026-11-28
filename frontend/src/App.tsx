@@ -171,6 +171,9 @@ function App() {
     const expired = () => {
       store.setSession(null);
       setUser(null);
+      if (jobService.all().length === 0 && !jobService.isPublicLoading()) {
+        jobService.load().catch(() => {});
+      }
     };
 
     window.addEventListener("sj:auth-expired", expired);
@@ -208,12 +211,21 @@ function App() {
           applicationService.loadMine().catch(console.error);
         }
 
-        jobService.load().catch(console.error);
+        if (
+          apiUser.role === "EMPLOYER" ||
+          apiUser.role === "ADMIN" ||
+          (jobService.all().length === 0 && !jobService.isPublicLoading())
+        ) {
+          jobService.load().catch(console.error);
+        }
       })
       .catch(() => {
         tokenStore.clear();
         store.setSession(null);
         setUser(null);
+        if (jobService.all().length === 0 && !jobService.isPublicLoading()) {
+          jobService.load().catch(() => {});
+        }
       });
   }, []);
 
@@ -1029,7 +1041,9 @@ function Jobs() {
   useEffect(() => setPage(1), [q, location, type, category, salary, sort]);
   // Vào trực tiếp /jobs hoặc sau một lỗi tạm thời: nạp lại nếu danh sách công khai đang trống
   useEffect(() => {
-    if (jobService.all().length === 0) jobService.load().catch(() => {});
+    if (jobService.all().length === 0 && !jobService.isPublicLoading()) {
+      jobService.load().catch(() => {});
+    }
   }, []);
 
   const handleResetFilters = () => {
