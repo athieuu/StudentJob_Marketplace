@@ -216,6 +216,7 @@ async function saveCvAnalysisHistory({
  * Upload PDF/DOCX -> extract raw text -> AI cv_extract + groundCvExtract + AI cv_feedback
  */
 async function analyzeCV(req, res) {
+  if (req.cvAnalysisSignal?.aborted) return;
   if (!req.file) {
     return res.status(400).json({ message: 'Vui lòng chọn file PDF hoặc DOCX.' });
   }
@@ -226,13 +227,19 @@ async function analyzeCV(req, res) {
   try {
     rawText = await readCvFileText(req.file);
   } catch {
+    if (req.cvAnalysisSignal?.aborted) return;
     return res.status(422).json({ message: 'Không thể đọc tệp CV. Vui lòng kiểm tra tệp PDF hoặc DOCX và thử lại.' });
   }
+  if (req.cvAnalysisSignal?.aborted) return;
   if (!rawText.trim()) {
     return res.status(422).json({ message: 'Không tìm thấy văn bản trong tệp. Hãy dùng PDF có thể chọn chữ hoặc DOCX; nếu PDF là ảnh, hãy chuyển ảnh thành văn bản bằng OCR trước khi tải lên.' });
   }
 
   try {
+    const aiSignal = AbortSignal.any([
+      req.cvAnalysisSignal,
+      AbortSignal.timeout(req.app.locals.cvAnalysisAiTimeoutMs || 40000),
+    ]);
     const { contact, anonymized } = extractContactAndStripPII(rawText);
     const injectionFlag = detectInjection(rawText);
 
@@ -261,6 +268,7 @@ async function analyzeCV(req, res) {
         durationMs: Date.now() - startedAt,
         fileBuffer: req.file.buffer,
       });
+      if (req.cvAnalysisSignal.aborted) return;
       return res.json({
         historyId,
         message: 'Đã trích xuất cơ bản (AI chưa được cấu hình).',
@@ -283,7 +291,8 @@ async function analyzeCV(req, res) {
     try {
       const extractRes = await runStructuredPrompt(
         'cv_extract',
-        wrapData('cv_text', anonymized.slice(0, 14000))
+        wrapData('cv_text', anonymized.slice(0, 14000)),
+        { signal: aiSignal }
       );
       const grounded = groundCvExtract(extractRes.data, rawText);
       warnings.push(...grounded.warnings);
@@ -292,6 +301,7 @@ async function analyzeCV(req, res) {
       aiUsed = true;
       modelName = extractRes.model;
     } catch (aiErr) {
+      if (req.cvAnalysisSignal.aborted) return;
       console.warn('cv_extract fallback');
       const fallbackSkills = extractSkillsFromText(rawText).map((s) => s.name);
       builderPayload = {
@@ -308,7 +318,7 @@ async function analyzeCV(req, res) {
         rawPreview: anonymized.slice(0, 3500),
         skills: fallbackSkills,
       };
-      warnings.push('AI trích xuất cấu trúc chi tiết gặp giới hạn định dạng, hệ thống đã chuyển sang trích xuất cơ bản và vẫn chạy đánh giá AI.');
+      warnings.push('AI trích xuất cấu trúc chi tiết gặp giới hạn, hệ thống đã chuyển sang trích xuất cơ bản.');
     }
 
     try {
@@ -317,14 +327,16 @@ async function analyzeCV(req, res) {
       if (targetJob) {
         fbInput += `\n${wrapData('target_job', targetJob.slice(0, 2000))}`;
       }
-      const fbRes = await runStructuredPrompt('cv_feedback', fbInput);
+      const fbRes = await runStructuredPrompt('cv_feedback', fbInput, { signal: aiSignal });
       feedback = fbRes.data;
       if (!modelName) modelName = fbRes.model;
     } catch (fbErr) {
+      if (req.cvAnalysisSignal.aborted) return;
       console.warn('cv_feedback skipped');
       warnings.push('Không thể tạo nhận xét chi tiết cho CV lúc này.');
     }
 
+    if (req.cvAnalysisSignal.aborted) return;
     const historyId = await saveCvAnalysisHistory({
       userId: req.user.id,
       fileName: req.file.originalname,
@@ -338,6 +350,8 @@ async function analyzeCV(req, res) {
       fileBuffer: req.file.buffer,
     });
 
+    if (req.cvAnalysisSignal.aborted) return;
+
     return res.json({
       historyId,
       message: aiUsed ? 'Phân tích CV bằng AI thành công.' : 'Đã trích xuất thông tin cơ bản từ CV.',
@@ -348,6 +362,7 @@ async function analyzeCV(req, res) {
       warnings,
     });
   } catch (error) {
+    if (req.cvAnalysisSignal?.aborted) return;
     console.error('AI analyzeCV failed');
     if (error.code === 'CV_HISTORY_SAVE_FAILED') {
       return res.status(500).json({ message: 'Không thể lưu lịch sử phân tích CV lúc này. Vui lòng thử lại sau.' });

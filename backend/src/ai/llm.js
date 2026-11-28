@@ -83,7 +83,17 @@ function isConfigured() {
   return Boolean(apiKey && baseUrl && model);
 }
 
-async function callChat({ messages, maxTokens = 2000, timeoutMs = 45000 }) {
+function abortable(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new Error('AI timeout'));
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new Error('AI timeout'));
+    signal.addEventListener('abort', abort, { once: true });
+    Promise.resolve(promise).then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
+}
+
+async function callChat({ messages, maxTokens = 2000, timeoutMs = 45000, signal }) {
   const { apiKey, baseUrl, model } = getConfig();
   if (!apiKey || !baseUrl || !model) {
     throw new Error('AI chưa được cấu hình (thiếu API_KEY / BASE_URL / MODEL_NAME).');
@@ -91,10 +101,13 @@ async function callChat({ messages, maxTokens = 2000, timeoutMs = 45000 }) {
 
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
+    if (signal?.aborted) throw new Error('AI timeout');
     const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const res = await abortable(fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -107,20 +120,20 @@ async function callChat({ messages, maxTokens = 2000, timeoutMs = 45000 }) {
           max_tokens: maxTokens,
           temperature: 0.2,
         }),
-      });
+      }), controller.signal);
 
       if (res.status === 429 || res.status >= 500) {
         lastErr = new Error(`AI provider HTTP ${res.status}`);
-        await new Promise((r) => setTimeout(r, 1200));
+        await abortable(new Promise((r) => setTimeout(r, 1200)), controller.signal);
         continue;
       }
 
       if (!res.ok) {
-        const errText = await res.text().catch(() => '');
+        const errText = await abortable(res.text(), controller.signal).catch(() => '');
         throw new Error(`AI provider HTTP ${res.status}${errText ? `: ${errText.slice(0, 160)}` : ''}`);
       }
 
-      const json = await res.json();
+      const json = await abortable(res.json(), controller.signal);
       const content = json.choices?.[0]?.message?.content ?? '';
       return {
         text: content,
@@ -131,6 +144,7 @@ async function callChat({ messages, maxTokens = 2000, timeoutMs = 45000 }) {
       lastErr = err.name === 'AbortError' ? new Error('AI timeout') : err;
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
     }
   }
 
@@ -150,7 +164,7 @@ async function runStructuredPrompt(promptId, userContent, options = {}) {
     { role: 'user', content: userContent },
   ];
 
-  const first = await callChat({ messages, maxTokens, timeoutMs: options.timeoutMs });
+  const first = await callChat({ messages, maxTokens, timeoutMs: options.timeoutMs, signal: options.signal });
   const parsedJson = parseModelJson(first.text);
   const firstSanitized = parsedJson.ok ? sanitizeOutput(promptId, parsedJson.data) : null;
   const firstValidation = parsedJson.ok ? validate(schemaName, firstSanitized) : { ok: false, errors: [parsedJson.error] };
@@ -173,7 +187,7 @@ async function runStructuredPrompt(promptId, userContent, options = {}) {
     },
   ];
 
-  const second = await callChat({ messages: repairMessages, maxTokens, timeoutMs: options.timeoutMs });
+  const second = await callChat({ messages: repairMessages, maxTokens, timeoutMs: options.timeoutMs, signal: options.signal });
   const secondJson = parseModelJson(second.text);
   const secondSanitized = secondJson.ok ? sanitizeOutput(promptId, secondJson.data) : null;
   const repaired = secondJson.ok ? validate(schemaName, secondSanitized) : { ok: false, errors: [secondJson.error] };

@@ -26,7 +26,20 @@ const upload = multer({
 router.use(authenticateToken);
 router.use(authorizeRole('STUDENT'));
 
-router.post('/cv/analyze', upload.single('file'), aiController.analyzeCV);
+// Bound the whole route, including upload parsing and history persistence. A stalled
+// database write may still complete after this response; it cannot be cancelled here.
+router.post('/cv/analyze', (req, res, next) => {
+  const deadline = new AbortController();
+  const timeoutMs = req.app.locals.cvAnalysisTimeoutMs || 50000;
+  const timer = setTimeout(() => {
+    deadline.abort();
+    if (!res.headersSent) res.status(503).json({ message: 'Phân tích CV quá thời gian. Vui lòng thử lại.' });
+  }, timeoutMs);
+  req.cvAnalysisSignal = deadline.signal;
+  res.once('close', () => { clearTimeout(timer); deadline.abort(); });
+  res.once('finish', () => clearTimeout(timer));
+  next();
+}, upload.single('file'), aiController.analyzeCV);
 router.get('/cv/history', aiController.getCvHistory);
 router.delete('/cv/history/:id', aiController.deleteCvHistory);
 router.post('/cv/feedback', aiController.feedbackCV);
