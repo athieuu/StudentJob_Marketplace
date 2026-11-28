@@ -2326,10 +2326,13 @@ function Register() {
 
             <form className="space-y-4" onSubmit={requestOtp}>
               <div>
-                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                <label htmlFor="register-name" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                   {role === "STUDENT" ? "Họ và tên" : "Tên người đại diện"}
                 </label>
                 <input
+                  id="register-name"
+                  name="name"
+                  autoComplete="name"
                   className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                   required
                   minLength={2}
@@ -2341,10 +2344,13 @@ function Register() {
 
               {role === "EMPLOYER" && (
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                  <label htmlFor="register-company" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                     Tên công ty / Doanh nghiệp
                   </label>
                   <input
+                    id="register-company"
+                    name="company"
+                    autoComplete="organization"
                     className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                     required
                     value={company}
@@ -2355,10 +2361,14 @@ function Register() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                <label htmlFor="register-email" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                   Địa chỉ email
                 </label>
                 <input
+                  id="register-email"
+                  name="email"
+                  autoComplete="username"
+                  spellCheck={false}
                   className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                   type="email"
                   required
@@ -2369,10 +2379,13 @@ function Register() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
+                <label htmlFor="register-password" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5">
                   Mật khẩu
                 </label>
                 <input
+                  id="register-password"
+                  name="password"
+                  autoComplete="new-password"
                   className="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-primary)] transition-colors duration-150"
                   type="password"
                   required
@@ -2411,10 +2424,13 @@ function Register() {
         ) : (
           <form className="space-y-4" onSubmit={verify}>
             <div>
-              <label className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5 text-center">
+              <label htmlFor="register-otp" className="block text-xs font-bold text-[var(--color-foreground)] mb-1.5 text-center">
                 Mã xác minh OTP (6 chữ số)
               </label>
               <input
+                id="register-otp"
+                name="otp"
+                autoComplete="one-time-code"
                 className="w-full bg-white border-2 border-[var(--color-primary)] rounded-lg px-3.5 py-3 text-center tracking-[0.5em] text-xl font-bold font-mono text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] transition-colors duration-150"
                 inputMode="numeric"
                 pattern="[0-9]{6}"
