@@ -6,8 +6,8 @@ is a separate job type; the source categories, work modes, descriptions,
 responsibilities, requirements and skills remain available. The private input,
 credentials, database backup and ID manifests do not belong in Git.
 
-The guarded live rollout and import completed on 2026-11-28; branch publication
-is pending a fresh concurrency check. The deployed frontend route and API proxy
+The guarded live rollout and import completed on 2026-11-28; the reviewed branch
+was fast-forwarded to Khang after a fresh ref check. The deployed frontend route and API proxy
 were checked over HTTP; a browser rendering check remains outstanding.
 Migration 009 and the data import are separate stages because MySQL DDL commits
 implicitly. The API must allowlist public fields before the migration so the
@@ -70,3 +70,6 @@ This covers existing users and password hashes, CVs, applications and chat data.
 All four item34 safety-file hashes matched the running backend after activation.
 The compatible backend image listed above remains available for a reviewed
 rollback that preserves internship support and fingerprint redaction.
+An isolated Compose switch from a test candidate to that compatible image also
+passed: all 152 test jobs remained visible, an internship edit returned 200,
+and fingerprints remained hidden. No rollback was performed on the live service.
