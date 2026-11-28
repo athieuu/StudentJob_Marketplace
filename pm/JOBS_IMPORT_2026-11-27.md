@@ -39,6 +39,10 @@ Against the isolated migrated database it returned 152 jobs including 14
 internships, hid fingerprints, reported an existing applicant count and accepted
 an unchanged internship edit. Its four safety-file hashes match the running
 backend. The final locally staged frontend image is
-`sha256:c7ea857aca7f0fc55212c01821a59687ea7d59d8d19a65f563624dcec54ba6c3`;
+`sha256:f1a377a3443cafc1a78c5884462f26cb4c291997a7cd0c73c72163e10af2de39`;
 its nginx check, jobs route and proxy to the isolated API passed. These local
 images are not evidence of deployment to the VPS.
+
+Backend Dev's focused review cleared commit `4463c8c` after the stale-response
+fix and deferred tests. The deployed account-safety files remain preserved in
+both staged backend images. The live rollout and publication are still pending.
