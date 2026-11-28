@@ -218,6 +218,7 @@ export const jobService = {
       const result = await api.jobs.all();
       if (publicVersion === publicJobLoadVersion) {
         publicJobCache = result.data.map(mapJob);
+        notifyData();
       }
     } catch (error) {
       publicError = error;
