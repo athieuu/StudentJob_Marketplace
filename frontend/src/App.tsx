@@ -199,15 +199,16 @@ function App() {
           joinedAt: new Date().toISOString().slice(0, 10),
         };
 
+        // Phiên phải được ghi lại trước khi nạp dữ liệu theo vai trò
+        store.setSession(restored);
+
         setUser(restored);
 
         if (apiUser.role === "STUDENT") {
           applicationService.loadMine().catch(console.error);
         }
 
-        if (apiUser.role === "EMPLOYER" || apiUser.role === "ADMIN") {
-          jobService.load().catch(console.error);
-        }
+        jobService.load().catch(console.error);
       })
       .catch(() => {
         tokenStore.clear();
@@ -1026,6 +1027,10 @@ function Jobs() {
   const pages = Math.max(1, Math.ceil(sorted.length / perPage));
   const results = sorted.slice((page - 1) * perPage, page * perPage);
   useEffect(() => setPage(1), [q, location, type, category, salary, sort]);
+  // Vào trực tiếp /jobs hoặc sau một lỗi tạm thời: nạp lại nếu danh sách công khai đang trống
+  useEffect(() => {
+    if (jobService.all().length === 0) jobService.load().catch(() => {});
+  }, []);
 
   const handleResetFilters = () => {
     setType("ALL");
@@ -2078,9 +2083,8 @@ function Login() {
                 applicationService.loadMine().catch(console.error);
               }
 
-              if (u.role === "EMPLOYER" || u.role === "ADMIN") {
-                jobService.load().catch(console.error);
-              }
+              // Mọi vai trò đều cần danh sách việc làm công khai
+              jobService.load().catch(console.error);
               toast(`Chào mừng trở lại, ${u.name.split(" ")[0]}!`);
               const from = (location.state as { from?: string } | null)?.from;
               navigate(loginRedirect(u.role, from), {
@@ -2640,7 +2644,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
               to: `/employer/applications/${a.id}`,
             }))
         : jobService
-            .all()
+            .adminAll()
             .filter((j) => j.moderation === "PENDING")
             .slice(0, 4)
             .map((j) => ({
@@ -2768,6 +2772,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
               authService.logout();
               setUser(null);
               navigate("/");
+              if (jobService.all().length === 0) jobService.load().catch(() => {});
             }}
           >
             <LogOut size={16} />
@@ -2968,6 +2973,7 @@ function Shell({ role, children }: { role: Role; children: ReactNode }) {
                       authService.logout();
                       setUser(null);
                       navigate("/");
+                      if (jobService.all().length === 0) jobService.load().catch(() => {});
                     }}
                     className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
                   >
@@ -4765,7 +4771,12 @@ function ApplicationDetails({ role }: { role: "STUDENT" | "EMPLOYER" }) {
   const { id = "" } = useParams();
   const { user } = useContext(AuthContext);
   const app = applicationService.all().find((a) => a.id === id);
-  const job = app ? jobService.byId(app.jobId) : undefined;
+  // Employer chỉ tra cứu trong tin tuyển dụng của mình; sinh viên dùng danh sách công khai
+  const job = app
+    ? role === "EMPLOYER"
+      ? jobService.mineById(app.jobId)
+      : jobService.byId(app.jobId)
+    : undefined;
   const studentName = app?.studentName || "Ứng viên";
 
   if (role === "STUDENT" && app && app.studentId !== user?.id)
@@ -5335,7 +5346,7 @@ function EmployerDashboard() {
   const { user } = useContext(AuthContext);
 
   // API /jobs/mine đã trả về job của Employer hiện tại
-  const jobs = jobService.all();
+  const jobs = jobService.mine();
 
   const apps = applicationService
     .all()
@@ -5594,7 +5605,7 @@ function EmployerJobs() {
   const [status, setStatus] = useState("ALL");
   const [sort, setSort] = useState("newest");
   const [confirm, setConfirm] = useState<Job | null>(null);
-  const allJobs = jobService.all();
+  const allJobs = jobService.mine();
   const jobs = allJobs
     .filter(
       (j) =>
@@ -5877,7 +5888,7 @@ function JobEditor() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();
-  const existing = editing ? jobService.byId(id) : undefined;
+  const existing = editing ? jobService.mineById(id) : undefined;
   const [form, setForm] = useState({
     title: existing?.title || "",
     category: existing?.category || "Technology",
@@ -6585,7 +6596,7 @@ function AdminDashboard() {
   }, []);
 
   const users = store.users(),
-    jobs = jobService.all(),
+    jobs = jobService.adminAll(),
     apps = applicationService.all();
 
   const statsBreakdown = [
@@ -7739,7 +7750,7 @@ function AdminJobs() {
   const [rejectReason, setRejectReason] = useState("");
   const [preview, setPreview] = useState<Job | null>(null);
 
-  const allJobs = jobService.all();
+  const allJobs = jobService.adminAll();
   const jobs = allJobs.filter(
     (j) =>
       (moderation === "ALL" || j.moderation === moderation) &&

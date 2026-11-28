@@ -1,10 +1,17 @@
 import type { User, Role, Job, Application, Review } from '../types';
 import { api, tokenStore } from './api';
 let userCache: User[] = [];
-let jobCache: Job[] = [];
+// Job caches are split by scope: public listing (every role), the employer's
+// own jobs (/jobs/mine), and admin pending moderation (/admin/jobs/pending).
+let publicJobCache: Job[] = [];
+let employerJobCache: Job[] = [];
+let adminPendingJobCache: Job[] = [];
 let applicationCache: Application[] = [];
 let reviewCache: Review[] = [];
 let jobLoadVersion = 0;
+let publicJobLoadVersion = 0;
+let employerJobLoadVersion = 0;
+let adminJobLoadVersion = 0;
 let sessionEpoch = 0;
 let applicationListVersion = 0;
 const jobApplicationVersions = new Map<string, number>();
@@ -66,10 +73,16 @@ function readSession(): User | null {
 const sessionKey = (user: User | null) => user ? `${user.id}:${user.role}` : '';
 function saveSession(user: User | null) {
   if (sessionKey(readSession()) !== sessionKey(user)) {
-    jobCache = [];
+    // Private caches belong to the outgoing session; public jobs are the same
+    // for every role and survive the switch.
+    employerJobCache = [];
+    adminPendingJobCache = [];
     applicationCache = [];
-    jobLoadVersion++;
+    if (user?.role !== 'ADMIN') userCache = [];
     sessionEpoch++;
+    jobLoadVersion++;
+    employerJobLoadVersion++;
+    adminJobLoadVersion++;
     applicationListVersion++;
     jobApplicationVersions.clear();
   }
@@ -92,13 +105,14 @@ export const store = {
   setSession: saveSession,
   reset: () => {
     saveSession(null);
-    userCache = []; 
+    userCache = [];
     tokenStore.clear();
-    jobCache = [];
+    employerJobCache = [];
+    adminPendingJobCache = [];
     applicationCache = [];
     notifyData();
   },
-  
+
 
 users: () => userCache,
 
@@ -126,7 +140,7 @@ async loadUsers(): Promise<User[]> {
 },
 
 
-  jobs: () => jobCache,
+  jobs: () => publicJobCache,
   applications: () => applicationCache,
   reviews: () => reviewCache,
   saveUsers: (_: User[]) => undefined,
@@ -157,63 +171,97 @@ export const authService = {
     tokenStore.clear();
     saveSession(null);
     userCache = [];
-    jobCache = [];
+    employerJobCache = [];
+    adminPendingJobCache = [];
     applicationCache = [];
     notifyData();
   },
 };
 
 export const jobService = {
-  all: () => jobCache,
-  byId: (id: string): Job | undefined => jobCache.find(job => job.id === id),
+  all: () => publicJobCache,
+  mine: () => (readSession()?.role === 'EMPLOYER' ? employerJobCache : []),
+  mineById: (id: string): Job | undefined => jobService.mine().find(job => job.id === id),
+  adminAll: () => {
+    const pending = readSession()?.role === 'ADMIN' ? adminPendingJobCache : [];
+    const seen = new Set<string>();
+    return [...publicJobCache, ...pending].filter(job => {
+      if (seen.has(job.id)) return false;
+      seen.add(job.id);
+      return true;
+    });
+  },
+  byId: (id: string): Job | undefined => {
+    const session = readSession();
+    return publicJobCache.find(job => job.id === id)
+      ?? (session?.role === 'EMPLOYER' ? employerJobCache.find(job => job.id === id) : undefined)
+      ?? (session?.role === 'ADMIN' ? adminPendingJobCache.find(job => job.id === id) : undefined);
+  },
   async load() {
     const session = readSession();
     const identity = sessionKey(session);
     const epoch = sessionEpoch;
-    const version = ++jobLoadVersion;
-    let rows: Record<string, any>[];
+    // Bumping jobLoadVersion invalidates application-detail responses issued by older loads.
+    ++jobLoadVersion;
+    const publicVersion = ++publicJobLoadVersion;
+    const employerVersion = session?.role === 'EMPLOYER' ? ++employerJobLoadVersion : 0;
+    const adminVersion = session?.role === 'ADMIN' ? ++adminJobLoadVersion : 0;
+    const sessionStale = () => identity !== sessionKey(readSession()) || epoch !== sessionEpoch;
+
+    // Public jobs are visible to every role, so load them first regardless of session.
+    let publicError: unknown = null;
+    try {
+      const result = await api.jobs.all();
+      if (!sessionStale() && publicVersion === publicJobLoadVersion) {
+        publicJobCache = result.data.map(mapJob);
+      }
+    } catch (error) {
+      publicError = error;
+    }
+
     if (session?.role === 'EMPLOYER') {
       try {
         const result = await api.jobs.mine();
-        rows = result.data;
+        if (!sessionStale() && employerVersion === employerJobLoadVersion) {
+          employerJobCache = result.data.map(mapJob);
+          // Fetch details only for jobs with applications; counts arrive with the list.
+          const populatedIds = new Set(employerJobCache.filter(job => job.applicants > 0).map(job => job.id));
+          applicationCache = applicationCache.filter(app => populatedIds.has(app.jobId));
+          await Promise.all(employerJobCache.filter(job => job.applicants > 0).map(job => applicationService.loadByJob(job.id).catch(error => {
+            console.error(`Could not load applications for job ${job.id}`, error);
+          })));
+        }
       } catch (error) {
-        if (identity === sessionKey(readSession()) && epoch === sessionEpoch && version === jobLoadVersion) {
-          jobCache = [];
+        // Only the employer's own data is suspect; public jobs stay intact.
+        if (!sessionStale() && employerVersion === employerJobLoadVersion) {
+          employerJobCache = [];
           applicationCache = [];
           notifyData();
         }
         throw error;
       }
-    } else {
-      const result = await api.jobs.all();
-      rows = result.data;
-      if (session?.role === 'ADMIN') {
-        try {
-          const pending = await api.admin.pendingJobs();
-          rows = [...rows, ...pending.data];
-        } catch (error) {
-          console.error('Could not load pending jobs', error);
+    }
+
+    if (session?.role === 'ADMIN') {
+      try {
+        const pending = await api.admin.pendingJobs();
+        if (!sessionStale() && adminVersion === adminJobLoadVersion) {
+          adminPendingJobCache = pending.data.map(mapJob);
+        }
+      } catch (error) {
+        console.error('Could not load pending jobs', error);
+        if (!sessionStale() && adminVersion === adminJobLoadVersion) {
+          adminPendingJobCache = [];
         }
       }
     }
-    if (identity !== sessionKey(readSession()) || epoch !== sessionEpoch || version !== jobLoadVersion) return jobCache;
-    const uniqueRows = [...new Map(rows.map(row => [String(row.id), row])).values()];
-    jobCache = uniqueRows.map(mapJob);
-
-    // Fetch details only for jobs with applications; counts arrive with the list.
-    if (session?.role === 'EMPLOYER') {
-      const populatedIds = new Set(jobCache.filter(job => job.applicants > 0).map(job => job.id));
-      applicationCache = applicationCache.filter(app => populatedIds.has(app.jobId));
-      await Promise.all(jobCache.filter(job => job.applicants > 0).map(job => applicationService.loadByJob(job.id).catch(error => {
-        console.error(`Could not load applications for job ${job.id}`, error);
-      })));
-    }
 
     notifyData();
-    return jobCache;
+    if (publicError) throw publicError;
+    return publicJobCache;
   },
   async save(job: Job) {
-    const existing = jobCache.find(item => item.id === job.id);
+    const existing = this.mineById(job.id) ?? this.byId(job.id);
     const extras = {
       category: job.category,
       work_mode: ({ 'On-site': 'Trực tiếp', Hybrid: 'Kết hợp', Remote: 'Từ xa' } as Record<string, string>)[job.arrangement] || job.arrangement,
