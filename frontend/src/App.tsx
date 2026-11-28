@@ -8091,7 +8091,7 @@ function AdminApplications() {
       try {
         const result = await applicationService.loadAllAdmin();
 
-        if (!cancelled) {
+        if (!cancelled && result) {
           setApplications(result.applications);
           setLoadError("");
         }

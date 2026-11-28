@@ -80,13 +80,13 @@ test('imported job fields display and unrelated edits preserve their original va
   const older = loaded.exports.applicationService.loadByJob('99');
   const newer = loaded.exports.applicationService.loadByJob('99');
   deferred[1](response(2)); await newer;
-  deferred[0](response(1)); await older;
+  deferred[0](response(1)); assert.equal(await older, null);
   assert.equal(loaded.exports.applicationService.all()[0].id, '2', 'older job response is ignored');
   deferred.length = 0;
   const oldFailure = loaded.exports.applicationService.loadByJob('99');
   const newest = loaded.exports.applicationService.loadByJob('99');
   deferred[1](response(3)); await newest;
-  deferred[0](response(1, false)); await assert.rejects(oldFailure);
+  deferred[0](response(1, false)); assert.equal(await oldFailure, null);
   assert.equal(loaded.exports.applicationService.all()[0].id, '3', 'older failure cannot clear newer job data');
 
   loaded.exports.store.setSession({ id: '1', role: 'STUDENT' });
@@ -94,19 +94,19 @@ test('imported job fields display and unrelated edits preserve their original va
   const oldMine = loaded.exports.applicationService.loadMine();
   const newMine = loaded.exports.applicationService.loadMine();
   deferred[1](response(5)); await newMine;
-  deferred[0](response(4)); await oldMine;
+  deferred[0](response(4)); assert.equal(await oldMine, null);
   assert.equal(loaded.exports.applicationService.all()[0].id, '5', 'older application list is ignored');
   deferred.length = 0;
   const priorLogin = loaded.exports.applicationService.loadMine();
   loaded.exports.store.setSession(null);
   loaded.exports.store.setSession({ id: '1', role: 'STUDENT' });
-  deferred[0](response(6)); await priorLogin;
+  deferred[0](response(6)); assert.equal(await priorLogin, null);
   assert.equal(loaded.exports.applicationService.all().length, 0, 'prior login cannot refill the new session');
   loaded.exports.store.setSession({ id: '3', role: 'ADMIN' });
   deferred.length = 0;
   const oldAdmin = loaded.exports.applicationService.loadAllAdmin();
   const newAdmin = loaded.exports.applicationService.loadAllAdmin();
   deferred[1](response(8)); await newAdmin;
-  deferred[0](response(7)); await oldAdmin;
+  deferred[0](response(7)); assert.equal(await oldAdmin, null, 'caller cannot render the older result');
   assert.equal(loaded.exports.applicationService.all()[0].id, '8', 'older admin list is ignored');
 });
